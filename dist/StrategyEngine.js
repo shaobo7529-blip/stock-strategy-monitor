@@ -172,6 +172,68 @@ export class MAPullbackStrategy {
     }
 }
 /**
+ * 累积 RSI(2) 策略 — Connors 经典高胜率策略
+ *
+ * 触发条件（全部满足）：
+ * 1. 价格在 200 日均线之上（上升趋势）
+ * 2. 最近 2 天的 RSI(2) 累积值 < threshold（默认 35）
+ *
+ * 原始回测：SPY 上 88% 胜率，平均持有 3.7 天
+ */
+export class CumulativeRSI2Strategy {
+    name = 'cumulative-rsi2';
+    evaluate(stock, _benchmark, threshold, context) {
+        if (!context || context.length < 3)
+            return false;
+        // 计算当天和前一天的 RSI(2)
+        const rsiToday = this.calcRSI2(context.slice(-1)[0], stock);
+        const rsiYesterday = context.length >= 2 ? this.calcRSI2(context.slice(-2)[0], context.slice(-1)[0]) : null;
+        if (rsiToday === null || rsiYesterday === null)
+            return false;
+        // 累积 RSI = 最近 2 天的 RSI(2) 之和
+        const cumulativeRSI = rsiToday + rsiYesterday;
+        if (cumulativeRSI >= threshold)
+            return false;
+        // 趋势过滤：价格在 200 日均线之上
+        const allPrices = [...context, stock];
+        const lookback = Math.min(allPrices.length, 200);
+        const ma = allPrices.slice(-lookback).reduce((sum, c) => sum + c.closePrice, 0) / lookback;
+        return stock.closePrice > ma;
+    }
+    calcRSI2(prev, curr) {
+        const changes = [prev, curr];
+        let totalGain = 0, totalLoss = 0;
+        for (const c of changes) {
+            if (c.changePercent > 0)
+                totalGain += c.changePercent;
+            else
+                totalLoss += Math.abs(c.changePercent);
+        }
+        const avgGain = totalGain / 2;
+        const avgLoss = totalLoss / 2;
+        if (avgLoss === 0)
+            return 100;
+        return 100 - 100 / (1 + avgGain / avgLoss);
+    }
+}
+/**
+ * VIX 恐慌买入策略
+ *
+ * 触发条件：
+ * 基准指数（NASDAQ）当日跌幅 >= threshold%（默认 3%）
+ * 这是 VIX 飙升的代理指标（我们没有直接的 VIX 数据，用大盘急跌代替）
+ * 大盘恐慌性下跌后，个股反弹概率高
+ */
+export class VIXSpikeStrategy {
+    name = 'vix-spike';
+    evaluate(_stock, benchmark, threshold) {
+        if (benchmark === null)
+            return false;
+        // 基准指数当日跌幅 >= threshold%（恐慌性下跌）
+        return benchmark.changePercent <= -threshold;
+    }
+}
+/**
  * 策略引擎 — 注册策略并对日变动数据执行评估，收集触发事件
  */
 export class StrategyEngine {

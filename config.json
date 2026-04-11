@@ -31,6 +31,16 @@
       "type": "ma-pullback",
       "threshold": 2,
       "enabled": true
+    },
+    {
+      "type": "cumulative-rsi2",
+      "threshold": 35,
+      "enabled": true
+    },
+    {
+      "type": "vix-spike",
+      "threshold": 3,
+      "enabled": true
     }
   ],
   "dataSource": {

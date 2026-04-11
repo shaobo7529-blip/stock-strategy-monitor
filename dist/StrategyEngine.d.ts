@@ -66,6 +66,32 @@ export declare class MAPullbackStrategy implements Strategy {
     private isMATrendingUp;
 }
 /**
+ * 累积 RSI(2) 策略 — Connors 经典高胜率策略
+ *
+ * 触发条件（全部满足）：
+ * 1. 价格在 200 日均线之上（上升趋势）
+ * 2. 最近 2 天的 RSI(2) 累积值 < threshold（默认 35）
+ *
+ * 原始回测：SPY 上 88% 胜率，平均持有 3.7 天
+ */
+export declare class CumulativeRSI2Strategy implements Strategy {
+    readonly name = "cumulative-rsi2";
+    evaluate(stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[]): boolean;
+    private calcRSI2;
+}
+/**
+ * VIX 恐慌买入策略
+ *
+ * 触发条件：
+ * 基准指数（NASDAQ）当日跌幅 >= threshold%（默认 3%）
+ * 这是 VIX 飙升的代理指标（我们没有直接的 VIX 数据，用大盘急跌代替）
+ * 大盘恐慌性下跌后，个股反弹概率高
+ */
+export declare class VIXSpikeStrategy implements Strategy {
+    readonly name = "vix-spike";
+    evaluate(_stock: DailyChange, benchmark: DailyChange | null, threshold: number): boolean;
+}
+/**
  * 策略引擎 — 注册策略并对日变动数据执行评估，收集触发事件
  */
 export declare class StrategyEngine {

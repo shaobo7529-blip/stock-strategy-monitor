@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import * as url from 'node:url';
 import { parse } from './ConfigParser.js';
 import { fetchStockHistory, fetchIndexHistory, validateSymbol, calculateDailyChanges, } from './DataFetcher.js';
-import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, } from './StrategyEngine.js';
+import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { generateCSV, calculateStats } from './ReportGenerator.js';
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -57,6 +57,8 @@ async function runMonitor(configPath, triggersPath) {
     engine.registerStrategy(new RSI2OversoldStrategy());
     engine.registerStrategy(new ConsecutiveDownDaysStrategy());
     engine.registerStrategy(new MAPullbackStrategy());
+    engine.registerStrategy(new CumulativeRSI2Strategy());
+    engine.registerStrategy(new VIXSpikeStrategy());
     let existingCsv = '';
     try {
         existingCsv = fs.readFileSync(path.resolve(triggersPath), 'utf-8');
@@ -156,6 +158,8 @@ const server = http.createServer(async (req, res) => {
                 calculateStats(cachedResult.records, 'rsi2-oversold'),
                 calculateStats(cachedResult.records, 'consecutive-down-days'),
                 calculateStats(cachedResult.records, 'ma-pullback'),
+                calculateStats(cachedResult.records, 'cumulative-rsi2'),
+                calculateStats(cachedResult.records, 'vix-spike'),
             ].filter(s => s.totalTriggers > 0);
             sendJSON(res, 200, { stats });
         }

@@ -21,6 +21,8 @@ import {
   RSI2OversoldStrategy,
   ConsecutiveDownDaysStrategy,
   MAPullbackStrategy,
+  CumulativeRSI2Strategy,
+  VIXSpikeStrategy,
 } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { generateCSV, generateConsoleSummary } from './ReportGenerator.js';
@@ -120,6 +122,8 @@ async function main(): Promise<void> {
   engine.registerStrategy(new RSI2OversoldStrategy());
   engine.registerStrategy(new ConsecutiveDownDaysStrategy());
   engine.registerStrategy(new MAPullbackStrategy());
+  engine.registerStrategy(new CumulativeRSI2Strategy());
+  engine.registerStrategy(new VIXSpikeStrategy());
 
   // 5. 加载已有触发记录
   let existingCsv = '';

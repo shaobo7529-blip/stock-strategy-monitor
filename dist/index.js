@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import * as process from 'node:process';
 import { parse } from './ConfigParser.js';
 import { fetchStockHistory, fetchIndexHistory, validateSymbol, calculateDailyChanges, } from './DataFetcher.js';
-import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, } from './StrategyEngine.js';
+import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { generateCSV, generateConsoleSummary } from './ReportGenerator.js';
 // --- CLI 参数解析 ---
@@ -98,6 +98,8 @@ async function main() {
     engine.registerStrategy(new RSI2OversoldStrategy());
     engine.registerStrategy(new ConsecutiveDownDaysStrategy());
     engine.registerStrategy(new MAPullbackStrategy());
+    engine.registerStrategy(new CumulativeRSI2Strategy());
+    engine.registerStrategy(new VIXSpikeStrategy());
     // 5. 加载已有触发记录
     let existingCsv = '';
     try {

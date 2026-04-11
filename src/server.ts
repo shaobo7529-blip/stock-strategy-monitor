@@ -22,6 +22,8 @@ import {
   RSI2OversoldStrategy,
   ConsecutiveDownDaysStrategy,
   MAPullbackStrategy,
+  CumulativeRSI2Strategy,
+  VIXSpikeStrategy,
 } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { generateCSV, generateConsoleSummary, calculateStats } from './ReportGenerator.js';
@@ -82,6 +84,8 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
   engine.registerStrategy(new RSI2OversoldStrategy());
   engine.registerStrategy(new ConsecutiveDownDaysStrategy());
   engine.registerStrategy(new MAPullbackStrategy());
+  engine.registerStrategy(new CumulativeRSI2Strategy());
+  engine.registerStrategy(new VIXSpikeStrategy());
 
   let existingCsv = '';
   try { existingCsv = fs.readFileSync(path.resolve(triggersPath), 'utf-8'); } catch { /* empty */ }
@@ -190,6 +194,8 @@ const server = http.createServer(async (req, res) => {
         calculateStats(cachedResult.records, 'rsi2-oversold'),
         calculateStats(cachedResult.records, 'consecutive-down-days'),
         calculateStats(cachedResult.records, 'ma-pullback'),
+        calculateStats(cachedResult.records, 'cumulative-rsi2'),
+        calculateStats(cachedResult.records, 'vix-spike'),
       ].filter(s => s.totalTriggers > 0);
       sendJSON(res, 200, { stats });
     } catch (err: any) {
