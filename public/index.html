@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>美股策略监控</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+  .container { max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin-bottom: 20px; color: #38bdf8; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  button { background: #1e40af; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; }
+  button:hover { background: #2563eb; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .status { padding: 8px 12px; background: #1e293b; border-radius: 6px; font-size: 0.875rem; line-height: 1.8; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .stat-card { background: #1e293b; border-radius: 8px; padding: 16px; }
+  .stat-card h3 { font-size: 0.875rem; color: #94a3b8; margin-bottom: 12px; }
+  .stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.875rem; }
+  .stat-value { font-weight: 600; }
+  .positive { color: #4ade80; }
+  .negative { color: #f87171; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; }
+  th { background: #1e293b; color: #94a3b8; font-weight: 600; position: sticky; top: 0; }
+  tr:hover { background: #1e293b; }
+  .table-wrap { max-height: 60vh; overflow-y: auto; border-radius: 8px; border: 1px solid #334155; }
+  .warnings { background: #422006; border: 1px solid #92400e; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.8125rem; color: #fbbf24; }
+  .loading { text-align: center; padding: 40px; color: #64748b; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
+  .badge-pending { background: #854d0e; color: #fde047; }
+  .badge-completed { background: #166534; color: #86efac; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📈 美股策略监控</h1>
+  <div class="toolbar">
+    <button id="btn-run" onclick="loadData(true)">🔄 运行监控</button>
+    <button id="btn-csv" onclick="downloadCSV()">📥 下载 CSV</button>
+    <div class="status" id="status">点击「运行监控」开始</div>
+  </div>
+  <div id="warnings"></div>
+  <div class="stats-grid" id="stats"></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>股票</th><th>触发日期</th><th>策略</th><th>触发日涨跌</th><th>次日涨跌</th><th>5日最大收益</th><th>第5日涨跌</th><th>状态</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+<script>
+const statusEl = document.getElementById('status');
+const tbodyEl = document.getElementById('tbody');
+const statsEl = document.getElementById('stats');
+const warningsEl = document.getElementById('warnings');
+
+function fmt(n) { return n == null ? '-' : n.toFixed(2) + '%'; }
+function cls(n) { return n == null ? '' : n >= 0 ? 'positive' : 'negative'; }
+function strategyLabel(t) {
+  const labels = {
+    'single-day-drop': '单日跌幅',
+    'underperform-benchmark': '跑输基准',
+    'rsi2-oversold': 'RSI(2)超卖',
+    'consecutive-down-days': '连续下跌',
+    'ma-pullback': '均线回踩'
+  };
+  return labels[t] || t;
+}
+
+async function loadData(refresh) {
+  const btn = document.getElementById('btn-run');
+  btn.disabled = true;
+  statusEl.textContent = '正在获取数据，请稍候...';
+  tbodyEl.innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
+
+  try {
+    const res = await fetch('/api/monitor' + (refresh ? '?refresh=1' : ''));
+    const data = await res.json();
+    if (data.error) { statusEl.textContent = '错误: ' + data.error; return; }
+
+    // warnings
+    if (data.warnings && data.warnings.length > 0) {
+      warningsEl.innerHTML = '<div class="warnings">⚠️ ' + data.warnings.join('<br>') + '</div>';
+    } else {
+      warningsEl.innerHTML = '';
+    }
+
+    // table
+    if (data.records.length === 0) {
+      tbodyEl.innerHTML = '<tr><td colspan="8" class="loading">暂无触发记录</td></tr>';
+    } else {
+      tbodyEl.innerHTML = data.records.map(r => `<tr>
+        <td><strong>${r.symbol}</strong></td>
+        <td>${r.triggerDate}</td>
+        <td>${strategyLabel(r.strategyType)}</td>
+        <td class="${cls(r.triggerDayChange)}">${fmt(r.triggerDayChange)}</td>
+        <td class="${cls(r.nextDayChange)}">${fmt(r.nextDayChange)}</td>
+        <td class="${cls(r.maxGainIn5Days)}">${fmt(r.maxGainIn5Days)}</td>
+        <td class="${cls(r.day5Change)}">${fmt(r.day5Change)}</td>
+        <td><span class="badge badge-${r.status}">${r.status === 'completed' ? '已完成' : '待更新'}</span></td>
+      </tr>`).join('');
+    }
+
+    statusEl.textContent = `共 ${data.records.length} 条记录` + (data.cached ? '（缓存）' : '（已刷新）');
+
+    // stats
+    const statsRes = await fetch('/api/stats');
+    const statsData = await statsRes.json();
+    if (statsData.stats && statsData.stats.length > 0) {
+      statsEl.innerHTML = statsData.stats.map(s => `<div class="stat-card">
+        <h3>${strategyLabel(s.strategyType)}</h3>
+        <div class="stat-row"><span>触发次数</span><span class="stat-value">${s.totalTriggers}</span></div>
+        <div class="stat-row"><span>次日胜率</span><span class="stat-value">${(s.winRate * 100).toFixed(1)}%</span></div>
+        <div class="stat-row"><span>次日均值</span><span class="stat-value ${cls(s.averageNextDayChange)}">${fmt(s.averageNextDayChange)}</span></div>
+        <div class="stat-row" style="border-top:1px solid #334155;margin-top:6px;padding-top:6px"><span>5日内胜率</span><span class="stat-value" style="color:#38bdf8">${(s.winRateIn5Days * 100).toFixed(1)}%</span></div>
+        <div class="stat-row"><span>5日最大收益均值</span><span class="stat-value ${cls(s.avgMaxGainIn5Days)}">${fmt(s.avgMaxGainIn5Days)}</span></div>
+      </div>`).join('');
+    } else {
+      statsEl.innerHTML = '';
+    }
+  } catch (e) {
+    statusEl.textContent = '请求失败: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function downloadCSV() {
+  window.open('/api/csv', '_blank');
+}
+</script>
+</body>
+</html>

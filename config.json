@@ -1,0 +1,50 @@
+{
+  "stockList": [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "NVDA",
+    "META",
+    "TSLA",
+    "NFLX",
+    "AMD",
+    "INTC"
+  ],
+  "strategies": [
+    {
+      "type": "single-day-drop",
+      "threshold": 3,
+      "enabled": false
+    },
+    {
+      "type": "underperform-benchmark",
+      "threshold": 1,
+      "enabled": false
+    },
+    {
+      "type": "rsi2-oversold",
+      "threshold": 10,
+      "enabled": true
+    },
+    {
+      "type": "consecutive-down-days",
+      "threshold": 3,
+      "enabled": true
+    },
+    {
+      "type": "ma-pullback",
+      "threshold": 2,
+      "enabled": true
+    }
+  ],
+  "dataSource": {
+    "benchmarkSymbol": "^IXIC",
+    "retryCount": 3,
+    "retryIntervalMs": 5000
+  },
+  "dateRange": {
+    "startDate": "2025-01-01",
+    "endDate": "2026-04-11"
+  }
+}
