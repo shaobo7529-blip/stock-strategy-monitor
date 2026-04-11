@@ -1,0 +1,24 @@
+{
+  "stockList": [
+    "600519.SS", "601318.SS", "600036.SS", "600276.SS", "601166.SS",
+    "600030.SS", "600900.SS", "601888.SS", "600809.SS", "603259.SS",
+    "601012.SS", "600585.SS", "600048.SS", "601668.SS", "600690.SS",
+    "000858.SZ", "000333.SZ", "000651.SZ", "002714.SZ", "000568.SZ"
+  ],
+  "strategies": [
+    { "type": "rsi2-oversold", "threshold": 10, "enabled": true },
+    { "type": "consecutive-down-days", "threshold": 3, "enabled": true },
+    { "type": "cumulative-rsi2", "threshold": 35, "enabled": true },
+    { "type": "vix-spike", "threshold": 3, "enabled": true },
+    { "type": "ma-pullback", "threshold": 2, "enabled": true }
+  ],
+  "dataSource": {
+    "benchmarkSymbol": "000001.SS",
+    "retryCount": 3,
+    "retryIntervalMs": 5000
+  },
+  "dateRange": {
+    "startDate": "2024-01-01",
+    "endDate": "2026-04-11"
+  }
+}

@@ -42,6 +42,23 @@ async function runMonitor(configPath, triggersPath) {
     const startDate = new Date(config.dateRange.startDate);
     const endDate = new Date(config.dateRange.endDate);
     const { retryCount, retryIntervalMs, benchmarkSymbol } = config.dataSource;
+    // 获取 SPY 数据用于市场环境判断（顺大盘铁律）
+    let spyPrices = [];
+    const spyResult = await fetchStockHistory('SPY', startDate, endDate, retryCount, retryIntervalMs);
+    if (spyResult.ok) {
+        spyPrices = spyResult.value;
+    }
+    else {
+        warnings.push('获取 SPY 数据失败，无法判断市场环境');
+    }
+    // 构建 SPY 200 日均线 map：date -> { aboveMA200: boolean, ma200TrendUp: boolean }
+    const spyRegimeByDate = new Map();
+    for (let i = 0; i < spyPrices.length; i++) {
+        const lookback = Math.min(i + 1, 200);
+        const slice = spyPrices.slice(i + 1 - lookback, i + 1);
+        const ma200 = slice.reduce((s, p) => s + p.close, 0) / lookback;
+        spyRegimeByDate.set(spyPrices[i].date, { bull: lookback >= 50 && spyPrices[i].close > ma200 });
+    }
     // 获取基准指数
     const benchmarkResult = await fetchIndexHistory(benchmarkSymbol, startDate, endDate, retryCount, retryIntervalMs);
     let benchmarkChanges = [];
@@ -73,8 +90,15 @@ async function runMonitor(configPath, triggersPath) {
         }
         const stockChanges = calculateDailyChanges(stockResult.value, symbol);
         const events = engine.evaluate(stockChanges, benchmarkChanges, config.strategies, stockResult.value);
-        for (const event of events)
+        // 顺大盘铁律：只在 SPY 200 日均线上方时触发（VIX恐慌策略除外，熊市也可抄底）
+        for (const event of events) {
+            const regime = spyRegimeByDate.get(event.triggerDate);
+            if (regime && !regime.bull && event.strategyType !== 'vix-spike') {
+                // 熊市信号，跳过（不逆势）
+                continue;
+            }
             tracker.recordTrigger(event);
+        }
         const pendingForSymbol = tracker.getPendingTriggers().filter((r) => r.symbol === symbol);
         for (const pending of pendingForSymbol) {
             const triggerIdx = stockChanges.findIndex((c) => c.date === pending.triggerDate);
@@ -84,13 +108,22 @@ async function runMonitor(configPath, triggersPath) {
                 const nextDayChange = ((nextDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
                 let maxGain = nextDayChange;
                 let day5Change = nextDayChange;
+                let maxDrawdown = nextDayChange; // 5日内最大回撤
                 const lookAhead = Math.min(5, stockChanges.length - triggerIdx - 1);
+                let stoppedOut = false;
                 for (let d = 1; d <= lookAhead; d++) {
                     const futureDay = stockChanges[triggerIdx + d];
                     const change = ((futureDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
                     if (change > maxGain)
                         maxGain = change;
-                    if (d === lookAhead)
+                    if (change < maxDrawdown)
+                        maxDrawdown = change;
+                    // 止损铁律：跌破 -5% 视为止损出局
+                    if (change <= -5 && !stoppedOut) {
+                        stoppedOut = true;
+                        day5Change = change; // 止损价作为最终收益
+                    }
+                    if (d === lookAhead && !stoppedOut)
                         day5Change = change;
                 }
                 tracker.updatePerformance(symbol, pending.triggerDate, nextDayChange, maxGain, day5Change);
