@@ -118,13 +118,25 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
     const stockChanges = calculateDailyChanges(stockResult.value, symbol);
     const events = engine.evaluate(stockChanges, benchmarkChanges, config.strategies, stockResult.value);
     
-    // 顺大盘铁律：只在 SPY 200 日均线上方时触发（VIX恐慌策略除外，熊市也可抄底）
+    // 顺大盘铁律 + IBS 过滤
     for (const event of events) {
       const regime = spyRegimeByDate.get(event.triggerDate);
       if (regime && !regime.bull && event.strategyType !== 'vix-spike') {
-        // 熊市信号，跳过（不逆势）
-        continue;
+        continue; // 熊市信号，跳过（VIX恐慌除外）
       }
+
+      // IBS 过滤：收盘在当日区间下半部分才触发（卖压释放信号）
+      // 均线回踩和VIX恐慌不受此过滤
+      const priceIdx = stockResult.value.findIndex(p => p.date === event.triggerDate);
+      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+        const p = stockResult.value[priceIdx];
+        const range = p.high - p.low;
+        if (range > 0) {
+          const ibs = (p.close - p.low) / range;
+          if (ibs > 0.5) continue; // 收盘在上半部分，不是超卖
+        }
+      }
+
       tracker.recordTrigger(event);
     }
 

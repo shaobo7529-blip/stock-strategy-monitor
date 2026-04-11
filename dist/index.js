@@ -120,6 +120,16 @@ async function main() {
         const stockChanges = calculateDailyChanges(stockResult.value, symbol);
         const events = engine.evaluate(stockChanges, benchmarkChanges, config.strategies, stockResult.value);
         for (const event of events) {
+            // IBS 过滤：收盘在当日区间下半部分才触发
+            if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+                const pi = stockResult.value.findIndex(p => p.date === event.triggerDate);
+                if (pi >= 0) {
+                    const p = stockResult.value[pi];
+                    const range = p.high - p.low;
+                    if (range > 0 && (p.close - p.low) / range > 0.5)
+                        continue;
+                }
+            }
             tracker.recordTrigger(event);
         }
         // 计算次日表现：对每个 pending 记录，查找次日收盘价
