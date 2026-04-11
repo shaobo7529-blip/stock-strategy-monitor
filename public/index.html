@@ -43,9 +43,20 @@
     <button class="btn btn-primary" id="btn-run" onclick="loadData(true)">🔄 运行监控</button>
     <button class="btn btn-secondary" id="btn-csv" onclick="downloadCSV()">📥 下载 CSV</button>
     <button class="btn btn-secondary" onclick="document.getElementById('filters').classList.toggle('hidden')">🔍 筛选</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('stock-panel').classList.toggle('hidden')">⚙️ 管理股票</button>
     <div class="status-bar" id="status">点击「运行监控」开始</div>
   </div>
   <div id="warnings"></div>
+  <div class="stock-panel hidden" id="stock-panel">
+    <div class="panel-title">📋 股票列表管理</div>
+    <div class="stock-tags" id="stock-tags"></div>
+    <div class="stock-input-row">
+      <input type="text" id="new-stock" placeholder="输入股票代码，如 AAPL 或 600519.SS" onkeydown="if(event.key==='Enter')addStock()">
+      <button class="btn btn-primary" onclick="addStock()" style="padding:6px 14px">添加</button>
+      <button class="btn btn-secondary" onclick="saveStocks()" style="padding:6px 14px">💾 保存</button>
+    </div>
+    <div class="panel-hint" id="stock-hint"></div>
+  </div>
   <div class="stats-grid" id="stats"></div>
   <div class="table-section">
     <div class="filters hidden" id="filters">
@@ -111,6 +122,16 @@
   .badge-completed { background: rgba(34,197,94,0.15); color: var(--green); }
   .warnings { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; font-size: 0.8rem; color: var(--yellow); }
   .loading { text-align: center; padding: 50px; color: var(--muted); }
+  .stock-panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .stock-panel.hidden { display: none; }
+  .panel-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 12px; }
+  .stock-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; min-height: 30px; }
+  .stock-tag { display: inline-flex; align-items: center; gap: 4px; background: rgba(59,130,246,0.15); color: var(--accent); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+  .stock-tag .remove { cursor: pointer; opacity: 0.6; font-size: 0.9rem; }
+  .stock-tag .remove:hover { opacity: 1; color: var(--red); }
+  .stock-input-row { display: flex; gap: 8px; align-items: center; }
+  .stock-input-row input { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; flex: 1; max-width: 300px; }
+  .panel-hint { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
   @media (max-width: 768px) { .container { padding: 12px; } .stats-grid { grid-template-columns: 1fr; } }
 </style>
 <script>
@@ -249,6 +270,59 @@ async function loadData(refresh) {
   } finally { btn.disabled = false; }
 }
 function downloadCSV() { window.open('/api/csv', '_blank'); }
+
+// --- 股票管理 ---
+let currentStocks = [];
+
+async function loadStocks() {
+  try {
+    const res = await fetch('/api/stocks');
+    const data = await res.json();
+    currentStocks = data.stocks || [];
+    renderStockTags();
+  } catch(e) { console.error('加载股票列表失败', e); }
+}
+
+function renderStockTags() {
+  document.getElementById('stock-tags').innerHTML = currentStocks.map(s =>
+    `<span class="stock-tag">${s}<span class="remove" onclick="removeStock('${s}')">✕</span></span>`
+  ).join('');
+}
+
+function addStock() {
+  const input = document.getElementById('new-stock');
+  const val = input.value.trim().toUpperCase();
+  if (!val) return;
+  if (currentStocks.includes(val)) { document.getElementById('stock-hint').textContent = `${val} 已存在`; return; }
+  currentStocks.push(val);
+  input.value = '';
+  renderStockTags();
+  document.getElementById('stock-hint').textContent = `已添加 ${val}（点保存生效）`;
+}
+
+function removeStock(symbol) {
+  currentStocks = currentStocks.filter(s => s !== symbol);
+  renderStockTags();
+  document.getElementById('stock-hint').textContent = `已移除 ${symbol}（点保存生效）`;
+}
+
+async function saveStocks() {
+  try {
+    const res = await fetch('/api/stocks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stocks: currentStocks })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('stock-hint').textContent = `✅ 已保存 ${currentStocks.length} 只股票，点运行监控刷新数据`;
+    } else {
+      document.getElementById('stock-hint').textContent = `❌ ${data.error}`;
+    }
+  } catch(e) { document.getElementById('stock-hint').textContent = `❌ 保存失败: ${e.message}`; }
+}
+
+loadStocks();
 
 // 页面打开自动加载数据
 loadData(false);

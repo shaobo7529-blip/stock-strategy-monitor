@@ -272,6 +272,39 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: 获取当前股票列表
+  if (pathname === '/api/stocks' && req.method === 'GET') {
+    try {
+      const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
+      const config = JSON.parse(configJson);
+      sendJSON(res, 200, { stocks: config.stockList || [] });
+    } catch (err: any) {
+      sendJSON(res, 500, { error: err.message });
+    }
+    return;
+  }
+
+  // API: 更新股票列表
+  if (pathname === '/api/stocks' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { stocks } = JSON.parse(body);
+        if (!Array.isArray(stocks)) { sendJSON(res, 400, { error: '需要 stocks 数组' }); return; }
+        const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
+        const config = JSON.parse(configJson);
+        config.stockList = stocks;
+        fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
+        cachedResult = null; // 清除缓存，下次请求重新拉数据
+        sendJSON(res, 200, { ok: true, stocks: config.stockList });
+      } catch (err: any) {
+        sendJSON(res, 500, { error: err.message });
+      }
+    });
+    return;
+  }
+
   // 404
   sendJSON(res, 404, { error: 'Not found' });
 });
