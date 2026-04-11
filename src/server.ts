@@ -231,4 +231,24 @@ server.listen(PORT, () => {
   console.log(`美股策略监控 Web 服务已启动: http://localhost:${PORT}`);
   console.log(`配置文件: ${CONFIG_PATH}`);
   console.log(`按 Ctrl+C 停止`);
+
+  // 启动后自动拉取一次数据
+  console.log('正在预加载数据...');
+  runMonitor(CONFIG_PATH, TRIGGERS_PATH)
+    .then(result => {
+      cachedResult = { ...result, timestamp: Date.now() };
+      console.log(`预加载完成: ${result.records.length} 条记录`);
+    })
+    .catch(err => console.error('预加载失败:', err.message));
+
+  // 每小时自动刷新
+  setInterval(() => {
+    console.log(`[${new Date().toISOString()}] 定时刷新数据...`);
+    runMonitor(CONFIG_PATH, TRIGGERS_PATH)
+      .then(result => {
+        cachedResult = { ...result, timestamp: Date.now() };
+        console.log(`[${new Date().toISOString()}] 刷新完成: ${result.records.length} 条记录`);
+      })
+      .catch(err => console.error(`[${new Date().toISOString()}] 刷新失败:`, err.message));
+  }, 60 * 60 * 1000); // 1 小时
 });
