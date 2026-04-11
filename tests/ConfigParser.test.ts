@@ -67,10 +67,16 @@ describe('ConfigParser', () => {
       expect(result.ok).toBe(true);
     });
 
-    it('should reject 11 stocks', () => {
-      const config = makeValidConfig({
-        stockList: ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT', 'DIS'],
-      });
+    it('should reject more than 50 stocks', () => {
+      const stocks = Array.from({ length: 51 }, (_, i) => String.fromCharCode(65 + (i % 26)).repeat(Math.min(5, 1 + Math.floor(i / 26))));
+      // Generate 51 unique valid symbols
+      const uniqueStocks: string[] = [];
+      for (let i = 0; i < 51; i++) {
+        const c1 = String.fromCharCode(65 + (i % 26));
+        const c2 = String.fromCharCode(65 + Math.floor(i / 26));
+        uniqueStocks.push(c1 + c2);
+      }
+      const config = makeValidConfig({ stockList: uniqueStocks });
       const result = parse(JSON.stringify(config));
       expect(result.ok).toBe(false);
       if (!result.ok) {

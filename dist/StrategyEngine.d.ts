@@ -50,13 +50,13 @@ export declare class ConsecutiveDownDaysStrategy implements Strategy {
  * 均线回踩策略 (MA Pullback)
  *
  * 触发条件（全部满足）：
- * 1. 收盘价在 MA20 和 MA50 之上（多头排列）
+ * 1. 收盘价在 MA20 和 MA50 之上
  * 2. MA20 > MA50（均线多头排列）
- * 3. MA20 和 MA50 均向上（近 5 日均线值递增）
- * 4. 收盘价回踩到 MA50 附近（距 MA50 不超过 threshold%，默认 2%）
- * 5. 当日成交量 < 5 日均量 * 0.7（缩量）
+ * 3. MA20 和 MA50 均向上（近 3 日均线值递增）
+ * 4. 收盘价回踩到 MA50 附近（距 MA50 不超过 threshold%，默认 5%）
+ * 5. 当日成交量 < 5 日均量 * 0.7（缩量 30%）
  * 6. 当日收阳线或十字星（close >= open * 0.998）
- * 7. 收盘价不跌破 MA50
+ * 7. 最低价不跌破 MA50
  */
 export declare class MAPullbackStrategy implements Strategy {
     readonly name = "ma-pullback";

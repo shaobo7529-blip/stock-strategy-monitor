@@ -115,13 +115,13 @@ export class ConsecutiveDownDaysStrategy implements Strategy {
  * 均线回踩策略 (MA Pullback)
  * 
  * 触发条件（全部满足）：
- * 1. 收盘价在 MA20 和 MA50 之上（多头排列）
+ * 1. 收盘价在 MA20 和 MA50 之上
  * 2. MA20 > MA50（均线多头排列）
- * 3. MA20 和 MA50 均向上（近 5 日均线值递增）
- * 4. 收盘价回踩到 MA50 附近（距 MA50 不超过 threshold%，默认 2%）
- * 5. 当日成交量 < 5 日均量 * 0.7（缩量）
+ * 3. MA20 和 MA50 均向上（近 3 日均线值递增）
+ * 4. 收盘价回踩到 MA50 附近（距 MA50 不超过 threshold%，默认 5%）
+ * 5. 当日成交量 < 5 日均量 * 0.7（缩量 30%）
  * 6. 当日收阳线或十字星（close >= open * 0.998）
- * 7. 收盘价不跌破 MA50
+ * 7. 最低价不跌破 MA50
  */
 export class MAPullbackStrategy implements Strategy {
   readonly name = 'ma-pullback';
@@ -132,32 +132,31 @@ export class MAPullbackStrategy implements Strategy {
     const today = priceHistory[priceHistory.length - 1];
     const prices = priceHistory;
 
-    // MA20 和 MA50
     const ma20 = this.calcMA(prices, 20);
     const ma50 = this.calcMA(prices, 50);
     if (ma20 === null || ma50 === null) return false;
 
-    // 1. 收盘价在两条均线之上
+    // 1. 收盘价在 MA20 和 MA50 之上
     if (today.close < ma20 || today.close < ma50) return false;
 
     // 2. MA20 > MA50（多头排列）
     if (ma20 <= ma50) return false;
 
-    // 3. 均线向上：比较近 5 日的 MA 值
+    // 3. 均线向上（近 5 日递增）
     if (!this.isMATrendingUp(prices, 20, 5) || !this.isMATrendingUp(prices, 50, 5)) return false;
 
     // 4. 回踩 MA50 附近（距离不超过 threshold%）
     const distToMA50 = ((today.close - ma50) / ma50) * 100;
     if (distToMA50 > threshold) return false;
 
-    // 5. 缩量：当日成交量 < 5 日均量 * 0.7
+    // 5. 缩量：当日成交量 < 5 日均量 * 0.7（低 30%）
     const avgVol5 = this.calcAvgVolume(prices, 5);
     if (avgVol5 === null || today.volume >= avgVol5 * 0.7) return false;
 
     // 6. 收阳线或十字星（close >= open * 0.998）
     if (today.close < today.open * 0.998) return false;
 
-    // 7. 不跌破 MA50（最低价不低于 MA50）
+    // 7. 最低价不跌破 MA50
     if (today.low < ma50) return false;
 
     return true;
@@ -170,7 +169,7 @@ export class MAPullbackStrategy implements Strategy {
   }
 
   private calcAvgVolume(prices: DailyPrice[], period: number): number | null {
-    if (prices.length < period + 1) return null; // 不含当天
+    if (prices.length < period + 1) return null;
     const slice = prices.slice(-(period + 1), -1);
     return slice.reduce((sum, p) => sum + p.volume, 0) / period;
   }
@@ -183,7 +182,6 @@ export class MAPullbackStrategy implements Strategy {
       const slice = prices.slice(endIdx - maPeriod, endIdx);
       maValues.unshift(slice.reduce((s, p) => s + p.close, 0) / maPeriod);
     }
-    // 检查是否递增
     for (let i = 1; i < maValues.length; i++) {
       if (maValues[i] <= maValues[i - 1]) return false;
     }

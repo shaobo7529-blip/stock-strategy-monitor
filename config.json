@@ -1,15 +1,10 @@
 {
   "stockList": [
-    "AAPL",
-    "MSFT",
-    "GOOGL",
-    "AMZN",
-    "NVDA",
-    "META",
-    "TSLA",
-    "NFLX",
-    "AMD",
-    "INTC"
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA",
+    "NFLX", "AMD", "INTC", "AVGO", "CRM", "ADBE", "ORCL",
+    "CSCO", "QCOM", "TXN", "AMAT", "MU", "LRCX",
+    "JPM", "V", "MA", "UNH", "JNJ", "PG", "KO",
+    "SPY", "QQQ", "DIA"
   ],
   "strategies": [
     {
@@ -44,7 +39,7 @@
     "retryIntervalMs": 5000
   },
   "dateRange": {
-    "startDate": "2025-01-01",
+    "startDate": "2024-01-01",
     "endDate": "2026-04-11"
   }
 }

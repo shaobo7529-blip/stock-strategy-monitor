@@ -9,7 +9,7 @@ import {
 } from './types.js';
 
 const VALID_SYMBOL_REGEX = /^[A-Z]{1,5}$/;
-const MAX_STOCK_COUNT = 10;
+const MAX_STOCK_COUNT = 50;
 const VALID_STRATEGY_TYPES: StrategyType[] = ['single-day-drop', 'underperform-benchmark', 'rsi2-oversold', 'consecutive-down-days', 'ma-pullback'];
 
 function isObject(value: unknown): value is Record<string, unknown> {
