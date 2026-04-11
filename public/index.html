@@ -223,6 +223,13 @@ async function loadData(refresh) {
     populateFilters();
     renderTable();
     document.getElementById('status').textContent = `✅ ${allRecords.length} 条记录` + (data.cached ? ' (缓存)' : ' (已刷新)');
+
+    // 如果服务器还在预加载，5秒后自动重试
+    if (data.loading) {
+      document.getElementById('status').textContent = '⏳ 服务器正在预加载数据，5秒后自动刷新...';
+      setTimeout(() => loadData(false), 5000);
+      return;
+    }
     const statsRes = await fetch('/api/stats');
     const sd = await statsRes.json();
     const statsEl = document.getElementById('stats');
@@ -242,6 +249,10 @@ async function loadData(refresh) {
   } finally { btn.disabled = false; }
 }
 function downloadCSV() { window.open('/api/csv', '_blank'); }
+
+// 页面打开自动加载数据
+loadData(false);
+// 如果返回 loading 状态，5 秒后自动重试
 </script>
 </body>
 </html>

@@ -142,6 +142,7 @@ function getIndexHTML(): string {
 
 // --- 缓存 ---
 let cachedResult: { records: TriggerRecord[]; warnings: string[]; timestamp: number } | null = null;
+let isLoading = false;
 
 // --- HTTP Server ---
 
@@ -165,17 +166,30 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/monitor') {
     try {
       const forceRefresh = parsedUrl.query.refresh === '1';
-      const cacheAge = cachedResult ? Date.now() - cachedResult.timestamp : Infinity;
 
-      if (!forceRefresh && cachedResult && cacheAge < 5 * 60 * 1000) {
+      // 如果有缓存且不是强制刷新，直接返回
+      if (!forceRefresh && cachedResult) {
         sendJSON(res, 200, { records: cachedResult.records, warnings: cachedResult.warnings, cached: true });
         return;
       }
 
+      // 如果正在加载中，返回等待状态或已有缓存
+      if (isLoading) {
+        if (cachedResult) {
+          sendJSON(res, 200, { records: cachedResult.records, warnings: cachedResult.warnings, cached: true });
+        } else {
+          sendJSON(res, 200, { records: [], warnings: ['数据正在加载中，请稍后刷新...'], cached: false, loading: true });
+        }
+        return;
+      }
+
+      isLoading = true;
       const result = await runMonitor(CONFIG_PATH, TRIGGERS_PATH);
       cachedResult = { ...result, timestamp: Date.now() };
+      isLoading = false;
       sendJSON(res, 200, { ...result, cached: false });
     } catch (err: any) {
+      isLoading = false;
       sendJSON(res, 500, { error: err.message });
     }
     return;
@@ -234,12 +248,14 @@ server.listen(PORT, () => {
 
   // 启动后自动拉取一次数据
   console.log('正在预加载数据...');
+  isLoading = true;
   runMonitor(CONFIG_PATH, TRIGGERS_PATH)
     .then(result => {
       cachedResult = { ...result, timestamp: Date.now() };
+      isLoading = false;
       console.log(`预加载完成: ${result.records.length} 条记录`);
     })
-    .catch(err => console.error('预加载失败:', err.message));
+    .catch(err => { isLoading = false; console.error('预加载失败:', err.message); });
 
   // 每小时自动刷新
   setInterval(() => {
