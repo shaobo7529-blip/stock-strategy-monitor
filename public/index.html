@@ -7,14 +7,14 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
-  .container { max-width: 1200px; margin: 0 auto; }
+  .container { max-width: 1400px; margin: 0 auto; }
   h1 { font-size: 1.5rem; margin-bottom: 20px; color: #38bdf8; }
-  .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
   button { background: #1e40af; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; }
   button:hover { background: #2563eb; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   .status { padding: 8px 12px; background: #1e293b; border-radius: 6px; font-size: 0.875rem; line-height: 1.8; }
-  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 20px; }
   .stat-card { background: #1e293b; border-radius: 8px; padding: 16px; }
   .stat-card h3 { font-size: 0.875rem; color: #94a3b8; margin-bottom: 12px; }
   .stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.875rem; }
@@ -22,15 +22,23 @@
   .positive { color: #4ade80; }
   .negative { color: #f87171; }
   table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #334155; }
-  th { background: #1e293b; color: #94a3b8; font-weight: 600; position: sticky; top: 0; }
-  tr:hover { background: #1e293b; }
-  .table-wrap { max-height: 60vh; overflow-y: auto; border-radius: 8px; border: 1px solid #334155; }
+  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap; }
+  th { background: #1e293b; color: #94a3b8; font-weight: 600; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
+  th:hover { color: #38bdf8; }
+  th .sort-icon { margin-left: 4px; font-size: 0.7rem; }
+  tr:hover { background: rgba(30,41,59,0.7); }
+  .table-wrap { max-height: 65vh; overflow-y: auto; border-radius: 8px; border: 1px solid #334155; }
+  .filters { display: flex; gap: 8px; padding: 8px 10px; background: #1e293b; border-bottom: 1px solid #334155; flex-wrap: wrap; }
+  .filters select, .filters input { background: #0f172a; color: #e2e8f0; border: 1px solid #334155; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; }
+  .filters select { min-width: 100px; }
+  .filters input { width: 120px; }
+  .filters label { font-size: 0.75rem; color: #94a3b8; display: flex; flex-direction: column; gap: 2px; }
   .warnings { background: #422006; border: 1px solid #92400e; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 0.8125rem; color: #fbbf24; }
   .loading { text-align: center; padding: 40px; color: #64748b; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
   .badge-pending { background: #854d0e; color: #fde047; }
   .badge-completed { background: #166534; color: #86efac; }
+  .record-count { font-size: 0.8rem; color: #64748b; padding: 4px 10px; }
 </style>
 </head>
 <body>
@@ -43,69 +51,152 @@
   </div>
   <div id="warnings"></div>
   <div class="stats-grid" id="stats"></div>
-  <div class="table-wrap"><table>
-    <thead><tr><th>股票</th><th>触发日期</th><th>策略</th><th>触发日涨跌</th><th>次日涨跌</th><th>5日最大收益</th><th>第5日涨跌</th><th>状态</th></tr></thead>
-    <tbody id="tbody"></tbody>
-  </table></div>
+  <div class="table-wrap">
+    <div class="filters" id="filters">
+      <label>股票<select id="f-symbol"><option value="">全部</option></select></label>
+      <label>策略<select id="f-strategy"><option value="">全部</option></select></label>
+      <label>状态<select id="f-status"><option value="">全部</option><option value="completed">已完成</option><option value="pending">待更新</option></select></label>
+      <label>日期从<input type="date" id="f-date-from"></label>
+      <label>日期到<input type="date" id="f-date-to"></label>
+      <label>次日涨跌≥<input type="number" id="f-min-next" step="0.1" placeholder="-∞"></label>
+      <label>5日最大≥<input type="number" id="f-min-5d" step="0.1" placeholder="-∞"></label>
+    </div>
+    <table>
+      <thead><tr>
+        <th data-col="symbol">股票 <span class="sort-icon"></span></th>
+        <th data-col="triggerDate">触发日期 <span class="sort-icon"></span></th>
+        <th data-col="strategyType">策略 <span class="sort-icon"></span></th>
+        <th data-col="triggerDayChange">触发日涨跌 <span class="sort-icon"></span></th>
+        <th data-col="nextDayChange">次日涨跌 <span class="sort-icon"></span></th>
+        <th data-col="maxGainIn5Days">5日最大收益 <span class="sort-icon"></span></th>
+        <th data-col="day5Change">第5日涨跌 <span class="sort-icon"></span></th>
+        <th data-col="status">状态 <span class="sort-icon"></span></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="record-count" id="record-count"></div>
+  </div>
 </div>
 <script>
-const statusEl = document.getElementById('status');
-const tbodyEl = document.getElementById('tbody');
-const statsEl = document.getElementById('stats');
-const warningsEl = document.getElementById('warnings');
+let allRecords = [];
+let sortCol = 'triggerDate';
+let sortDir = -1; // -1 = desc, 1 = asc
 
+const strategyLabels = {
+  'single-day-drop': '单日跌幅', 'underperform-benchmark': '跑输基准',
+  'rsi2-oversold': 'RSI(2)超卖', 'consecutive-down-days': '连续下跌', 'ma-pullback': '均线回踩'
+};
+function strategyLabel(t) { return strategyLabels[t] || t; }
 function fmt(n) { return n == null ? '-' : n.toFixed(2) + '%'; }
 function cls(n) { return n == null ? '' : n >= 0 ? 'positive' : 'negative'; }
-function strategyLabel(t) {
-  const labels = {
-    'single-day-drop': '单日跌幅',
-    'underperform-benchmark': '跑输基准',
-    'rsi2-oversold': 'RSI(2)超卖',
-    'consecutive-down-days': '连续下跌',
-    'ma-pullback': '均线回踩'
-  };
-  return labels[t] || t;
+
+// Sorting
+document.querySelector('thead').addEventListener('click', e => {
+  const th = e.target.closest('th');
+  if (!th) return;
+  const col = th.dataset.col;
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  renderTable();
+});
+
+// Filtering
+document.getElementById('filters').addEventListener('change', () => renderTable());
+document.getElementById('filters').addEventListener('input', e => {
+  if (e.target.tagName === 'INPUT') renderTable();
+});
+
+function getFiltered() {
+  const fSymbol = document.getElementById('f-symbol').value;
+  const fStrategy = document.getElementById('f-strategy').value;
+  const fStatus = document.getElementById('f-status').value;
+  const fDateFrom = document.getElementById('f-date-from').value;
+  const fDateTo = document.getElementById('f-date-to').value;
+  const fMinNext = document.getElementById('f-min-next').value;
+  const fMin5d = document.getElementById('f-min-5d').value;
+
+  return allRecords.filter(r => {
+    if (fSymbol && r.symbol !== fSymbol) return false;
+    if (fStrategy && r.strategyType !== fStrategy) return false;
+    if (fStatus && r.status !== fStatus) return false;
+    if (fDateFrom && r.triggerDate < fDateFrom) return false;
+    if (fDateTo && r.triggerDate > fDateTo) return false;
+    if (fMinNext !== '' && (r.nextDayChange == null || r.nextDayChange < parseFloat(fMinNext))) return false;
+    if (fMin5d !== '' && (r.maxGainIn5Days == null || r.maxGainIn5Days < parseFloat(fMin5d))) return false;
+    return true;
+  });
+}
+
+function getSorted(records) {
+  return [...records].sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (va == null) va = sortDir === 1 ? Infinity : -Infinity;
+    if (vb == null) vb = sortDir === 1 ? Infinity : -Infinity;
+    if (typeof va === 'string') return va.localeCompare(vb) * sortDir;
+    return (va - vb) * sortDir;
+  });
+}
+
+function renderTable() {
+  const filtered = getFiltered();
+  const sorted = getSorted(filtered);
+  const tbody = document.getElementById('tbody');
+
+  // Update sort icons
+  document.querySelectorAll('th').forEach(th => {
+    const icon = th.querySelector('.sort-icon');
+    if (icon) icon.textContent = th.dataset.col === sortCol ? (sortDir === 1 ? '▲' : '▼') : '';
+  });
+
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="loading">无匹配记录</td></tr>';
+  } else {
+    tbody.innerHTML = sorted.map(r => `<tr>
+      <td><strong>${r.symbol}</strong></td>
+      <td>${r.triggerDate}</td>
+      <td>${strategyLabel(r.strategyType)}</td>
+      <td class="${cls(r.triggerDayChange)}">${fmt(r.triggerDayChange)}</td>
+      <td class="${cls(r.nextDayChange)}">${fmt(r.nextDayChange)}</td>
+      <td class="${cls(r.maxGainIn5Days)}">${fmt(r.maxGainIn5Days)}</td>
+      <td class="${cls(r.day5Change)}">${fmt(r.day5Change)}</td>
+      <td><span class="badge badge-${r.status}">${r.status === 'completed' ? '已完成' : '待更新'}</span></td>
+    </tr>`).join('');
+  }
+  document.getElementById('record-count').textContent = `显示 ${sorted.length} / ${allRecords.length} 条`;
+}
+
+function populateFilters() {
+  const symbols = [...new Set(allRecords.map(r => r.symbol))].sort();
+  const strategies = [...new Set(allRecords.map(r => r.strategyType))];
+  const fSymbol = document.getElementById('f-symbol');
+  const fStrategy = document.getElementById('f-strategy');
+  fSymbol.innerHTML = '<option value="">全部</option>' + symbols.map(s => `<option value="${s}">${s}</option>`).join('');
+  fStrategy.innerHTML = '<option value="">全部</option>' + strategies.map(s => `<option value="${s}">${strategyLabel(s)}</option>`).join('');
 }
 
 async function loadData(refresh) {
   const btn = document.getElementById('btn-run');
   btn.disabled = true;
-  statusEl.textContent = '正在获取数据，请稍候...';
-  tbodyEl.innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
+  document.getElementById('status').textContent = '正在获取数据，请稍候...';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
 
   try {
     const res = await fetch('/api/monitor' + (refresh ? '?refresh=1' : ''));
     const data = await res.json();
-    if (data.error) { statusEl.textContent = '错误: ' + data.error; return; }
+    if (data.error) { document.getElementById('status').textContent = '错误: ' + data.error; return; }
 
-    // warnings
     if (data.warnings && data.warnings.length > 0) {
-      warningsEl.innerHTML = '<div class="warnings">⚠️ ' + data.warnings.join('<br>') + '</div>';
-    } else {
-      warningsEl.innerHTML = '';
-    }
+      document.getElementById('warnings').innerHTML = '<div class="warnings">⚠️ ' + data.warnings.join('<br>') + '</div>';
+    } else { document.getElementById('warnings').innerHTML = ''; }
 
-    // table
-    if (data.records.length === 0) {
-      tbodyEl.innerHTML = '<tr><td colspan="8" class="loading">暂无触发记录</td></tr>';
-    } else {
-      tbodyEl.innerHTML = data.records.map(r => `<tr>
-        <td><strong>${r.symbol}</strong></td>
-        <td>${r.triggerDate}</td>
-        <td>${strategyLabel(r.strategyType)}</td>
-        <td class="${cls(r.triggerDayChange)}">${fmt(r.triggerDayChange)}</td>
-        <td class="${cls(r.nextDayChange)}">${fmt(r.nextDayChange)}</td>
-        <td class="${cls(r.maxGainIn5Days)}">${fmt(r.maxGainIn5Days)}</td>
-        <td class="${cls(r.day5Change)}">${fmt(r.day5Change)}</td>
-        <td><span class="badge badge-${r.status}">${r.status === 'completed' ? '已完成' : '待更新'}</span></td>
-      </tr>`).join('');
-    }
+    allRecords = data.records;
+    populateFilters();
+    renderTable();
+    document.getElementById('status').textContent = `共 ${allRecords.length} 条记录` + (data.cached ? '（缓存）' : '（已刷新）');
 
-    statusEl.textContent = `共 ${data.records.length} 条记录` + (data.cached ? '（缓存）' : '（已刷新）');
-
-    // stats
     const statsRes = await fetch('/api/stats');
     const statsData = await statsRes.json();
+    const statsEl = document.getElementById('stats');
     if (statsData.stats && statsData.stats.length > 0) {
       statsEl.innerHTML = statsData.stats.map(s => `<div class="stat-card">
         <h3>${strategyLabel(s.strategyType)}</h3>
@@ -115,19 +206,13 @@ async function loadData(refresh) {
         <div class="stat-row" style="border-top:1px solid #334155;margin-top:6px;padding-top:6px"><span>5日内胜率</span><span class="stat-value" style="color:#38bdf8">${(s.winRateIn5Days * 100).toFixed(1)}%</span></div>
         <div class="stat-row"><span>5日最大收益均值</span><span class="stat-value ${cls(s.avgMaxGainIn5Days)}">${fmt(s.avgMaxGainIn5Days)}</span></div>
       </div>`).join('');
-    } else {
-      statsEl.innerHTML = '';
-    }
+    } else { statsEl.innerHTML = ''; }
   } catch (e) {
-    statusEl.textContent = '请求失败: ' + e.message;
-  } finally {
-    btn.disabled = false;
-  }
+    document.getElementById('status').textContent = '请求失败: ' + e.message;
+  } finally { btn.disabled = false; }
 }
 
-function downloadCSV() {
-  window.open('/api/csv', '_blank');
-}
+function downloadCSV() { window.open('/api/csv', '_blank'); }
 </script>
 </body>
 </html>
