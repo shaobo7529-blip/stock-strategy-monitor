@@ -253,6 +253,42 @@ function renderTable() {
     pager += `</span>`;
   }
   document.getElementById('record-count').innerHTML = `<span>显示 ${start+1}-${Math.min(start+PAGE_SIZE, sorted.length)} / ${sorted.length} 条（共 ${allRecords.length}）</span>${pager}`;
+  
+  // 根据筛选后的数据重新计算统计卡片
+  renderStats(filtered);
+}
+
+function calcStatsLocal(records, strategyName) {
+  const completed = records.filter(r => r.status === 'completed' && r.strategyType === strategyName && r.nextDayChange != null);
+  if (completed.length === 0) return null;
+  const ndc = completed.map(r => r.nextDayChange);
+  const sum = ndc.reduce((a, b) => a + b, 0);
+  const wins = ndc.filter(v => v > 0).length;
+  const w5 = completed.filter(r => r.maxGainIn5Days != null && r.maxGainIn5Days > 0).length;
+  const mg5 = completed.filter(r => r.maxGainIn5Days != null).map(r => r.maxGainIn5Days);
+  const avgMg5 = mg5.length > 0 ? mg5.reduce((a, b) => a + b, 0) / mg5.length : 0;
+  const wr5 = mg5.length > 0 ? w5 / mg5.length : 0;
+  return {
+    strategyType: strategyName, totalTriggers: completed.length,
+    averageNextDayChange: sum / completed.length, winRate: wins / completed.length,
+    avgMaxGainIn5Days: avgMg5, winRateIn5Days: wr5,
+  };
+}
+
+function renderStats(filtered) {
+  const types = [...new Set(filtered.map(r => r.strategyType))].sort();
+  const stats = types.map(t => calcStatsLocal(filtered, t)).filter(s => s && s.totalTriggers > 0);
+  const el = document.getElementById('stats');
+  if (stats.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = stats.map(s => `<div class="stat-card">
+    <div class="card-title">${strategyLabel(s.strategyType)}</div>
+    <div class="stat-row"><span class="stat-label">触发次数</span><span class="stat-value">${s.totalTriggers}</span></div>
+    <div class="stat-row"><span class="stat-label">次日胜率</span><span class="stat-value">${(s.winRate*100).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="stat-label">次日均值</span><span class="stat-value ${cls(s.averageNextDayChange)}">${fmt(s.averageNextDayChange)}</span></div>
+    <div class="stat-divider"></div>
+    <div class="stat-row"><span class="stat-label">5日内胜率</span><span class="stat-value" style="color:var(--accent)">${(s.winRateIn5Days*100).toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="stat-label">5日最大均值</span><span class="stat-value ${cls(s.avgMaxGainIn5Days)}">${fmt(s.avgMaxGainIn5Days)}</span></div>
+  </div>`).join('');
 }
 
 function goPage(p) { currentPage = p; renderTable(); document.querySelector('.table-wrap').scrollTop = 0; }
@@ -287,20 +323,7 @@ async function loadData(refresh) {
       setTimeout(() => loadData(false), 5000);
       return;
     }
-    const statsRes = await fetch('/api/stats');
-    const sd = await statsRes.json();
-    const statsEl = document.getElementById('stats');
-    if (sd.stats?.length > 0) {
-      statsEl.innerHTML = sd.stats.map(s => `<div class="stat-card">
-        <div class="card-title">${strategyLabel(s.strategyType)}</div>
-        <div class="stat-row"><span class="stat-label">触发次数</span><span class="stat-value">${s.totalTriggers}</span></div>
-        <div class="stat-row"><span class="stat-label">次日胜率</span><span class="stat-value">${(s.winRate*100).toFixed(1)}%</span></div>
-        <div class="stat-row"><span class="stat-label">次日均值</span><span class="stat-value ${cls(s.averageNextDayChange)}">${fmt(s.averageNextDayChange)}</span></div>
-        <div class="stat-divider"></div>
-        <div class="stat-row"><span class="stat-label">5日内胜率</span><span class="stat-value" style="color:var(--accent)">${(s.winRateIn5Days*100).toFixed(1)}%</span></div>
-        <div class="stat-row"><span class="stat-label">5日最大均值</span><span class="stat-value ${cls(s.avgMaxGainIn5Days)}">${fmt(s.avgMaxGainIn5Days)}</span></div>
-      </div>`).join('');
-    } else { statsEl.innerHTML = ''; }
+    // 统计卡片由 renderTable -> renderStats 自动计算，不再请求服务端
   } catch (e) {
     document.getElementById('status').textContent = '❌ 请求失败: ' + e.message;
   } finally { btn.disabled = false; }
