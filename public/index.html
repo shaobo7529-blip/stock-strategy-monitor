@@ -201,7 +201,7 @@ function getFiltered() {
     if (fDT && r.triggerDate > fDT) return false;
     if (fMN !== '' && (r.nextDayChange == null || r.nextDayChange < parseFloat(fMN))) return false;
     if (fM5 !== '' && (r.maxGainIn5Days == null || r.maxGainIn5Days < parseFloat(fM5))) return false;
-    if (fStr !== '' && (r.signalStrength == null || r.signalStrength < parseInt(fStr))) return false;
+    if (fStr !== '' && (r.signalStrength == null || r.signalStrength !== parseInt(fStr))) return false;
     return true;
   });
 }

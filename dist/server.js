@@ -77,11 +77,8 @@ async function runMonitor(configPath, triggersPath) {
     engine.registerStrategy(new CumulativeRSI2Strategy());
     engine.registerStrategy(new VIXSpikeStrategy());
     let existingCsv = '';
-    try {
-        existingCsv = fs.readFileSync(path.resolve(triggersPath), 'utf-8');
-    }
-    catch { /* empty */ }
-    const tracker = new TriggerTracker(existingCsv);
+    // 不加载旧记录，每次全量重新计算避免重复
+    const tracker = new TriggerTracker();
     for (const symbol of validSymbols) {
         const stockResult = await fetchStockHistory(symbol, startDate, endDate, retryCount, retryIntervalMs);
         if (!stockResult.ok) {
