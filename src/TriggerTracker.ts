@@ -4,7 +4,7 @@
 
 import { TriggerEvent, TriggerRecord } from './types';
 
-const CSV_HEADER = 'symbol,triggerDate,strategyType,triggerDayChange,nextDayChange,maxGainIn5Days,day5Change,status';
+const CSV_HEADER = 'symbol,triggerDate,strategyType,triggerDayChange,nextDayChange,maxGainIn5Days,day5Change,status,signalStrength';
 
 export function serialize(records: TriggerRecord[]): string {
   const lines = [CSV_HEADER];
@@ -12,7 +12,8 @@ export function serialize(records: TriggerRecord[]): string {
     const nextDay = r.nextDayChange === null ? '' : String(r.nextDayChange);
     const maxGain5 = r.maxGainIn5Days === null ? '' : String(r.maxGainIn5Days);
     const day5 = r.day5Change === null ? '' : String(r.day5Change);
-    lines.push(`${r.symbol},${r.triggerDate},${r.strategyType},${r.triggerDayChange},${nextDay},${maxGain5},${day5},${r.status}`);
+    const strength = r.signalStrength === null || r.signalStrength === undefined ? '' : String(r.signalStrength);
+    lines.push(`${r.symbol},${r.triggerDate},${r.strategyType},${r.triggerDayChange},${nextDay},${maxGain5},${day5},${r.status},${strength}`);
   }
   return lines.join('\n');
 }
@@ -32,12 +33,14 @@ function parseLine(line: string): TriggerRecord {
   const maxGainStr = parts[5] || '';
   const day5Str = parts[6] || '';
   const status = (parts[7] || parts[5] || 'pending') as 'completed' | 'pending';
+  const strengthStr = parts[8] || '';
   return {
     symbol, triggerDate, strategyType,
     triggerDayChange: Number(triggerDayChangeStr),
     nextDayChange: nextDayChangeStr === '' ? null : Number(nextDayChangeStr),
     maxGainIn5Days: maxGainStr === '' || isNaN(Number(maxGainStr)) ? null : Number(maxGainStr),
     day5Change: day5Str === '' || isNaN(Number(day5Str)) ? null : Number(day5Str),
+    signalStrength: strengthStr === '' || isNaN(Number(strengthStr)) ? null : Number(strengthStr),
     status: (status === 'completed' || status === 'pending') ? status : 'pending',
   };
 }
@@ -51,12 +54,13 @@ export class TriggerTracker {
     }
   }
 
-  recordTrigger(event: TriggerEvent): void {
+  recordTrigger(event: TriggerEvent, signalStrength?: number | null): void {
     this.records.push({
       ...event,
       nextDayChange: null,
       maxGainIn5Days: null,
       day5Change: null,
+      signalStrength: signalStrength ?? null,
       status: 'pending',
     });
   }

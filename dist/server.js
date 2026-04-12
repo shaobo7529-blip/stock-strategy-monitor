@@ -90,7 +90,7 @@ async function runMonitor(configPath, triggersPath) {
         }
         const stockChanges = calculateDailyChanges(stockResult.value, symbol);
         const events = engine.evaluate(stockChanges, benchmarkChanges, config.strategies, stockResult.value);
-        // 顺大盘铁律 + IBS 过滤
+        // 顺大盘铁律 + IBS 过滤 + 成交量确认 + 信号强度
         for (const event of events) {
             const regime = spyRegimeByDate.get(event.triggerDate);
             if (regime && !regime.bull && event.strategyType !== 'vix-spike') {
@@ -99,16 +99,54 @@ async function runMonitor(configPath, triggersPath) {
             // IBS 过滤：收盘在当日区间下半部分才触发（卖压释放信号）
             // 均线回踩和VIX恐慌不受此过滤
             const priceIdx = stockResult.value.findIndex(p => p.date === event.triggerDate);
+            let ibsValue = 1; // 默认值（不过滤）
             if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
                 const p = stockResult.value[priceIdx];
                 const range = p.high - p.low;
                 if (range > 0) {
-                    const ibs = (p.close - p.low) / range;
-                    if (ibs > 0.5)
+                    ibsValue = (p.close - p.low) / range;
+                    if (ibsValue > 0.5)
                         continue; // 收盘在上半部分，不是超卖
                 }
             }
-            tracker.recordTrigger(event);
+            // 成交量确认过滤：均值回归策略要求放量（恐慌抛售 = 放量 = 更好的反弹）
+            // ma-pullback 已有自己的成交量过滤，vix-spike 是市场级信号，均跳过
+            let volumeRatio = 0;
+            if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+                const triggerVolume = stockResult.value[priceIdx].volume;
+                // 计算 5 日平均成交量
+                const volLookback = Math.min(priceIdx, 5);
+                if (volLookback > 0) {
+                    let volSum = 0;
+                    for (let vi = priceIdx - volLookback; vi < priceIdx; vi++) {
+                        volSum += stockResult.value[vi].volume;
+                    }
+                    const avgVol5 = volSum / volLookback;
+                    volumeRatio = avgVol5 > 0 ? triggerVolume / avgVol5 : 0;
+                    // RSI/连续下跌等均值回归策略要求 >= 1.2x
+                    if (event.strategyType === 'rsi2-oversold' || event.strategyType === 'consecutive-down-days'
+                        || event.strategyType === 'cumulative-rsi2' || event.strategyType === 'single-day-drop'
+                        || event.strategyType === 'underperform-benchmark') {
+                        if (volumeRatio < 1.2)
+                            continue;
+                    }
+                }
+            }
+            // 信号强度计算 (1-3)
+            let signalStrength = 0;
+            // +1 SPY 牛市（200MA 之上）
+            if (regime && regime.bull)
+                signalStrength++;
+            // +1 IBS < 0.3（强超卖收盘）
+            if (priceIdx >= 0 && ibsValue < 0.3)
+                signalStrength++;
+            // +1 成交量 >= 1.5x 5日均量（强放量确认）
+            if (volumeRatio >= 1.5)
+                signalStrength++;
+            // 至少为 1
+            if (signalStrength === 0)
+                signalStrength = 1;
+            tracker.recordTrigger(event, signalStrength);
         }
         const pendingForSymbol = tracker.getPendingTriggers().filter((r) => r.symbol === symbol);
         for (const pending of pendingForSymbol) {

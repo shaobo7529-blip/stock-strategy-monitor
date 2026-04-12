@@ -88,6 +88,8 @@ export interface TriggerRecord extends TriggerEvent {
   maxGainIn5Days: number | null;
   /** 后续 5 天末的涨跌幅，null 表示待更新 */
   day5Change: number | null;
+  /** 信号强度 1-3，null 表示未计算 */
+  signalStrength: number | null;
   status: 'completed' | 'pending';
 }
 

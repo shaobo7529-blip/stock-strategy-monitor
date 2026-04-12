@@ -4,7 +4,7 @@ export declare function deserialize(csv: string): TriggerRecord[];
 export declare class TriggerTracker {
     private records;
     constructor(existingCsv?: string);
-    recordTrigger(event: TriggerEvent): void;
+    recordTrigger(event: TriggerEvent, signalStrength?: number | null): void;
     updatePerformance(symbol: string, triggerDate: string, nextDayChange: number, maxGainIn5Days: number, day5Change: number): void;
     /** 兼容旧接口 */
     updateNextDayPerformance(symbol: string, triggerDate: string, performance: number): void;
