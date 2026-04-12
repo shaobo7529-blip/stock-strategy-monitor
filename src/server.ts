@@ -249,29 +249,28 @@ const server = http.createServer(async (req, res) => {
     try {
       const forceRefresh = parsedUrl.query.refresh === '1';
 
-      // 如果有缓存且不是强制刷新，直接返回
-      if (!forceRefresh && cachedResult) {
-        sendJSON(res, 200, { records: cachedResult.records, warnings: cachedResult.warnings, cached: true });
+      // 强制刷新：触发后台刷新，但立即返回当前缓存
+      if (forceRefresh && !isLoading) {
+        isLoading = true;
+        runMonitor(CONFIG_PATH, TRIGGERS_PATH)
+          .then(result => {
+            cachedResult = { ...result, timestamp: Date.now() };
+            isLoading = false;
+            fs.writeFileSync(path.resolve('cache.json'), JSON.stringify(cachedResult), 'utf-8');
+            console.log(`手动刷新完成: ${result.records.length} 条记录`);
+          })
+          .catch(err => { isLoading = false; console.error('刷新失败:', err.message); });
+      }
+
+      // 有缓存就返回缓存
+      if (cachedResult) {
+        sendJSON(res, 200, { records: cachedResult.records, warnings: cachedResult.warnings, cached: !forceRefresh, loading: isLoading });
         return;
       }
 
-      // 如果正在加载中，返回等待状态或已有缓存
-      if (isLoading) {
-        if (cachedResult) {
-          sendJSON(res, 200, { records: cachedResult.records, warnings: cachedResult.warnings, cached: true });
-        } else {
-          sendJSON(res, 200, { records: [], warnings: ['数据正在加载中，请稍后刷新...'], cached: false, loading: true });
-        }
-        return;
-      }
-
-      isLoading = true;
-      const result = await runMonitor(CONFIG_PATH, TRIGGERS_PATH);
-      cachedResult = { ...result, timestamp: Date.now() };
-      isLoading = false;
-      sendJSON(res, 200, { ...result, cached: false });
+      // 没缓存，返回空 + loading
+      sendJSON(res, 200, { records: [], warnings: ['数据正在加载中，请稍后刷新...'], cached: false, loading: true });
     } catch (err: any) {
-      isLoading = false;
       sendJSON(res, 500, { error: err.message });
     }
     return;
@@ -281,8 +280,8 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/stats') {
     try {
       if (!cachedResult) {
-        const result = await runMonitor(CONFIG_PATH, TRIGGERS_PATH);
-        cachedResult = { ...result, timestamp: Date.now() };
+        sendJSON(res, 200, { stats: [] });
+        return;
       }
       const stats = [
         calculateStats(cachedResult.records, 'single-day-drop'),
