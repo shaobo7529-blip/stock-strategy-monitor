@@ -68,6 +68,7 @@
         <label>日期到<input type="date" id="f-date-to"></label>
         <label>次日≥<input type="number" id="f-min-next" step="0.1" placeholder="-∞"></label>
         <label>5日最大≥<input type="number" id="f-min-5d" step="0.1" placeholder="-∞"></label>
+        <label>信号强度<select id="f-strength"><option value="">全部</option><option value="3">强</option><option value="2">中</option><option value="1">弱</option></select></label>
         <button class="btn btn-secondary" onclick="resetFilters()" style="align-self:flex-end;padding:6px 12px;font-size:0.75rem">重置</button>
       </div>
     </div>
@@ -191,6 +192,7 @@ function getFiltered() {
   const fDT = document.getElementById('f-date-to').value;
   const fMN = document.getElementById('f-min-next').value;
   const fM5 = document.getElementById('f-min-5d').value;
+  const fStr = document.getElementById('f-strength').value;
   return allRecords.filter(r => {
     if (fS && r.symbol !== fS) return false;
     if (fSt && r.strategyType !== fSt) return false;
@@ -199,6 +201,7 @@ function getFiltered() {
     if (fDT && r.triggerDate > fDT) return false;
     if (fMN !== '' && (r.nextDayChange == null || r.nextDayChange < parseFloat(fMN))) return false;
     if (fM5 !== '' && (r.maxGainIn5Days == null || r.maxGainIn5Days < parseFloat(fM5))) return false;
+    if (fStr !== '' && (r.signalStrength == null || r.signalStrength < parseInt(fStr))) return false;
     return true;
   });
 }
