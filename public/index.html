@@ -47,6 +47,9 @@
     <div class="status-bar" id="status">点击「运行监控」开始</div>
   </div>
   <div id="warnings"></div>
+  <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:0.75rem;color:var(--muted);line-height:1.6">
+    📋 <strong style="color:var(--accent)">过滤铁律</strong>：① 只做龙头（标普500/纳指100成分股）② 顺大盘（SPY>200日均线）③ 量能确认（成交量≥1.2x均量）④ IBS<0.5（收盘在区间下半部）⑤ 止损-5% ⑥ 止盈+10%
+  </div>
   <div class="stock-panel hidden" id="stock-panel">
     <div class="panel-title">📋 股票列表管理</div>
     <div class="stock-tags" id="stock-tags"></div>
@@ -85,7 +88,7 @@
           <th data-col="nextDayChange">次日涨跌 <span class="si"></span></th>
           <th data-col="maxGainIn5Days">5日最大 <span class="si"></span></th>
           <th data-col="day5Change">第5日 <span class="si"></span></th>
-          <th data-col="status">状态 <span class="si"></span></th>
+          <th data-col="status">结果 <span class="si"></span></th>
         </tr></thead>
         <tbody id="tbody"></tbody>
       </table>
@@ -154,9 +157,10 @@ let currentPage = 1;
 const PAGE_SIZE = 100;
 
 const SL = {
-  'single-day-drop': '单日跌幅', 'underperform-benchmark': '跑输基准',
-  'rsi2-oversold': 'RSI(2)超卖', 'consecutive-down-days': '连续下跌', 'ma-pullback': '均线回踩',
-  'cumulative-rsi2': '累积RSI(2)', 'vix-spike': 'VIX恐慌'
+  'single-day-drop': '单日跌≥3%', 'underperform-benchmark': '跑输基准≥1%',
+  'rsi2-oversold': 'RSI(2)≤10+MA200上方', 'consecutive-down-days': '连跌≥3日+牛市',
+  'ma-pullback': 'MA20>50多头+缩量回踩+收阳', 'cumulative-rsi2': '累积RSI<35+MA200上方',
+  'vix-spike': '大盘急跌≥3%恐慌抄底'
 };
 function strategyLabel(t) { return SL[t] || t; }
 function timeframeLabel(t) { return t === '1wk' ? '周线' : '日线'; }
@@ -237,18 +241,21 @@ function renderTable() {
   if (sorted.length === 0) {
     tbody.innerHTML = '<tr><td colspan="10" class="loading">无匹配记录</td></tr>';
   } else {
-    tbody.innerHTML = pageData.map(r => `<tr>
+    tbody.innerHTML = pageData.map(r => {
+      const tp = r.maxGainIn5Days != null && r.maxGainIn5Days >= 10 ? '✅止盈' : r.day5Change != null && r.day5Change <= -5 ? '❌止损' : r.status === 'completed' ? '📊已结算' : '⏳持有中';
+      const tpCls = r.maxGainIn5Days != null && r.maxGainIn5Days >= 10 ? 'positive' : r.day5Change != null && r.day5Change <= -5 ? 'negative' : '';
+      return `<tr>
       <td><strong>${r.symbol}</strong></td>
       <td style="color:var(--muted)">${r.triggerDate}</td>
-      <td>${strategyLabel(r.strategyType)}</td>
+      <td style="font-size:0.7rem">${strategyLabel(r.strategyType)}</td>
       <td>${timeframeLabel(r.timeframe)}</td>
       <td style="text-align:center">${strengthBadge(r.signalStrength)}</td>
       <td class="${cls(r.triggerDayChange)}">${fmt(r.triggerDayChange)}</td>
       <td class="${cls(r.nextDayChange)}">${fmt(r.nextDayChange)}</td>
       <td class="${cls(r.maxGainIn5Days)}">${fmt(r.maxGainIn5Days)}</td>
       <td class="${cls(r.day5Change)}">${fmt(r.day5Change)}</td>
-      <td><span class="badge badge-${r.status}">${r.status === 'completed' ? '✓ 完成' : '⏳ 待更新'}</span></td>
-    </tr>`).join('');
+      <td class="${tpCls}" style="font-size:0.7rem">${tp}</td>
+    </tr>`}).join('');
   }
   // 分页控件
   let pager = '';
