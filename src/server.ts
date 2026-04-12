@@ -326,16 +326,28 @@ server.listen(PORT, () => {
   console.log(`配置文件: ${CONFIG_PATH}`);
   console.log(`按 Ctrl+C 停止`);
 
-  // 启动后自动拉取一次数据
-  console.log('正在预加载数据...');
+  // 启动时先从磁盘缓存加载（秒返回）
+  const CACHE_FILE = path.resolve('cache.json');
+  try {
+    const diskCache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
+    if (diskCache.records && diskCache.timestamp) {
+      cachedResult = diskCache;
+      console.log(`从磁盘缓存加载: ${diskCache.records.length} 条记录 (${new Date(diskCache.timestamp).toLocaleString()})`);
+    }
+  } catch { /* 没有缓存文件，正常 */ }
+
+  // 后台异步刷新
+  console.log('后台刷新数据...');
   isLoading = true;
   runMonitor(CONFIG_PATH, TRIGGERS_PATH)
     .then(result => {
       cachedResult = { ...result, timestamp: Date.now() };
       isLoading = false;
-      console.log(`预加载完成: ${result.records.length} 条记录`);
+      // 持久化到磁盘
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(cachedResult), 'utf-8');
+      console.log(`刷新完成: ${result.records.length} 条记录，已写入缓存`);
     })
-    .catch(err => { isLoading = false; console.error('预加载失败:', err.message); });
+    .catch(err => { isLoading = false; console.error('刷新失败:', err.message); });
 
   // 每小时自动刷新
   setInterval(() => {
@@ -343,8 +355,9 @@ server.listen(PORT, () => {
     runMonitor(CONFIG_PATH, TRIGGERS_PATH)
       .then(result => {
         cachedResult = { ...result, timestamp: Date.now() };
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(cachedResult), 'utf-8');
         console.log(`[${new Date().toISOString()}] 刷新完成: ${result.records.length} 条记录`);
       })
       .catch(err => console.error(`[${new Date().toISOString()}] 刷新失败:`, err.message));
-  }, 60 * 60 * 1000); // 1 小时
+  }, 60 * 60 * 1000);
 });
