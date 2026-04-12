@@ -105,7 +105,6 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
   engine.registerStrategy(new CumulativeRSI2Strategy());
   engine.registerStrategy(new VIXSpikeStrategy());
 
-  let existingCsv = '';
   // 不加载旧记录，每次全量重新计算避免重复
   const tracker = new TriggerTracker();
 
@@ -118,8 +117,10 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
     const stockChanges = calculateDailyChanges(stockResult.value, symbol);
     const events = engine.evaluate(stockChanges, benchmarkChanges, config.strategies, stockResult.value);
     
+    const currentTimeframe = '1d';
     // 顺大盘铁律 + IBS 过滤 + 成交量确认 + 信号强度
     for (const event of events) {
+      const eventWithTf = { ...event, timeframe: currentTimeframe };
       const regime = spyRegimeByDate.get(event.triggerDate);
       if (regime && !regime.bull && event.strategyType !== 'vix-spike') {
         continue; // 熊市信号，跳过（VIX恐慌除外）
@@ -172,7 +173,7 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
       // 至少为 1
       if (signalStrength === 0) signalStrength = 1;
 
-      tracker.recordTrigger(event, signalStrength);
+      tracker.recordTrigger(eventWithTf, signalStrength);
     }
 
     const pendingForSymbol = tracker.getPendingTriggers().filter((r) => r.symbol === symbol);
@@ -197,6 +198,92 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
           if (change <= -5 && !stoppedOut) {
             stoppedOut = true;
             day5Change = change; // 止损价作为最终收益
+          }
+          if (d === lookAhead && !stoppedOut) day5Change = change;
+        }
+        tracker.updatePerformance(symbol, pending.triggerDate, nextDayChange, maxGain, day5Change);
+      }
+    }
+  }
+
+  // ========== 周线 (1wk) 第二轮 ==========
+  for (const symbol of validSymbols) {
+    const weeklyResult = await fetchStockHistory(symbol, startDate, endDate, retryCount, retryIntervalMs, '1wk');
+    if (!weeklyResult.ok) {
+      warnings.push(`获取 ${symbol} 周线失败: ${weeklyResult.error.message}`);
+      continue;
+    }
+    const weeklyChanges = calculateDailyChanges(weeklyResult.value, symbol);
+    const weeklyEvents = engine.evaluate(weeklyChanges, benchmarkChanges, config.strategies, weeklyResult.value);
+
+    const wkTimeframe = '1wk';
+    for (const event of weeklyEvents) {
+      const eventWithTf = { ...event, timeframe: wkTimeframe };
+      const regime = spyRegimeByDate.get(event.triggerDate);
+      if (regime && !regime.bull && event.strategyType !== 'vix-spike') {
+        continue;
+      }
+
+      const priceIdx = weeklyResult.value.findIndex(p => p.date === event.triggerDate);
+      let ibsValue = 1;
+      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+        const p = weeklyResult.value[priceIdx];
+        const range = p.high - p.low;
+        if (range > 0) {
+          ibsValue = (p.close - p.low) / range;
+          if (ibsValue > 0.5) continue;
+        }
+      }
+
+      let volumeRatio = 0;
+      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+        const triggerVolume = weeklyResult.value[priceIdx].volume;
+        const volLookback = Math.min(priceIdx, 5);
+        if (volLookback > 0) {
+          let volSum = 0;
+          for (let vi = priceIdx - volLookback; vi < priceIdx; vi++) {
+            volSum += weeklyResult.value[vi].volume;
+          }
+          const avgVol5 = volSum / volLookback;
+          volumeRatio = avgVol5 > 0 ? triggerVolume / avgVol5 : 0;
+          if (event.strategyType === 'rsi2-oversold' || event.strategyType === 'consecutive-down-days'
+              || event.strategyType === 'cumulative-rsi2' || event.strategyType === 'single-day-drop'
+              || event.strategyType === 'underperform-benchmark') {
+            if (volumeRatio < 1.2) continue;
+          }
+        }
+      }
+
+      let signalStrength = 0;
+      if (regime && regime.bull) signalStrength++;
+      if (priceIdx >= 0 && ibsValue < 0.3) signalStrength++;
+      if (volumeRatio >= 1.5) signalStrength++;
+      if (signalStrength === 0) signalStrength = 1;
+
+      tracker.recordTrigger(eventWithTf, signalStrength);
+    }
+
+    const pendingForSymbol = tracker.getPendingTriggers().filter((r) => r.symbol === symbol && r.timeframe === '1wk');
+    for (const pending of pendingForSymbol) {
+      const triggerIdx = weeklyChanges.findIndex((c) => c.date === pending.triggerDate);
+      if (triggerIdx >= 0 && triggerIdx + 1 < weeklyChanges.length) {
+        const triggerDay = weeklyChanges[triggerIdx];
+        const nextDay = weeklyChanges[triggerIdx + 1];
+        const nextDayChange = ((nextDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
+
+        let maxGain = nextDayChange;
+        let day5Change = nextDayChange;
+        let maxDrawdown = nextDayChange;
+        const lookAhead = Math.min(5, weeklyChanges.length - triggerIdx - 1);
+        let stoppedOut = false;
+        for (let d = 1; d <= lookAhead; d++) {
+          const futureDay = weeklyChanges[triggerIdx + d];
+          const change = ((futureDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
+          if (change > maxGain) maxGain = change;
+          if (change < maxDrawdown) maxDrawdown = change;
+          if (change <= -5 && !stoppedOut) {
+            stoppedOut = true;
+            day5Change = change;
           }
           if (d === lookAhead && !stoppedOut) day5Change = change;
         }

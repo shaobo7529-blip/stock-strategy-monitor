@@ -46,10 +46,10 @@ async function withRetry(fn, symbol, retryCount = DEFAULT_RETRY_COUNT, retryInte
     return { ok: false, error: lastError };
 }
 /** 直接调用 Yahoo Finance chart API */
-async function fetchHistory(symbol, startDate, endDate) {
+async function fetchHistory(symbol, startDate, endDate, interval = '1d') {
     const p1 = Math.floor(startDate.getTime() / 1000);
     const p2 = Math.floor(endDate.getTime() / 1000);
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${p1}&period2=${p2}&interval=1d&includePrePost=false`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${p1}&period2=${p2}&interval=${interval}&includePrePost=false`;
     const res = await fetch(url, fetchOptions);
     if (!res.ok) {
         const text = await res.text();
@@ -84,11 +84,11 @@ async function fetchHistory(symbol, startDate, endDate) {
     }
     return prices;
 }
-export async function fetchStockHistory(symbol, startDate, endDate, retryCount = DEFAULT_RETRY_COUNT, retryIntervalMs = DEFAULT_RETRY_INTERVAL_MS) {
-    return withRetry(() => fetchHistory(symbol, startDate, endDate), symbol, retryCount, retryIntervalMs);
+export async function fetchStockHistory(symbol, startDate, endDate, retryCount = DEFAULT_RETRY_COUNT, retryIntervalMs = DEFAULT_RETRY_INTERVAL_MS, interval = '1d') {
+    return withRetry(() => fetchHistory(symbol, startDate, endDate, interval), symbol, retryCount, retryIntervalMs);
 }
-export async function fetchIndexHistory(symbol, startDate, endDate, retryCount = DEFAULT_RETRY_COUNT, retryIntervalMs = DEFAULT_RETRY_INTERVAL_MS) {
-    return withRetry(() => fetchHistory(symbol, startDate, endDate), symbol, retryCount, retryIntervalMs);
+export async function fetchIndexHistory(symbol, startDate, endDate, retryCount = DEFAULT_RETRY_COUNT, retryIntervalMs = DEFAULT_RETRY_INTERVAL_MS, interval = '1d') {
+    return withRetry(() => fetchHistory(symbol, startDate, endDate, interval), symbol, retryCount, retryIntervalMs);
 }
 export async function validateSymbol(symbol) {
     try {

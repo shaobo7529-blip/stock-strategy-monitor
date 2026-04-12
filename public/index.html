@@ -69,6 +69,7 @@
         <label>次日≥<input type="number" id="f-min-next" step="0.1" placeholder="-∞"></label>
         <label>5日最大≥<input type="number" id="f-min-5d" step="0.1" placeholder="-∞"></label>
         <label>信号强度<select id="f-strength"><option value="">全部</option><option value="3">强</option><option value="2">中</option><option value="1">弱</option></select></label>
+        <label>周期<select id="f-timeframe"><option value="">全部</option><option value="1d">日线(1d)</option><option value="1wk">周线(1wk)</option></select></label>
         <button class="btn btn-secondary" onclick="resetFilters()" style="align-self:flex-end;padding:6px 12px;font-size:0.75rem">重置</button>
       </div>
     </div>
@@ -78,6 +79,7 @@
           <th data-col="symbol">股票 <span class="si"></span></th>
           <th data-col="triggerDate">触发日期 <span class="si"></span></th>
           <th data-col="strategyType">策略 <span class="si"></span></th>
+          <th data-col="timeframe">周期 <span class="si"></span></th>
           <th data-col="signalStrength">信号强度 <span class="si"></span></th>
           <th data-col="triggerDayChange">触发日涨跌 <span class="si"></span></th>
           <th data-col="nextDayChange">次日涨跌 <span class="si"></span></th>
@@ -111,6 +113,7 @@
   th:nth-child(2), td:nth-child(2) { text-align: left; }
   th:nth-child(3), td:nth-child(3) { text-align: left; }
   th:nth-child(4), td:nth-child(4) { text-align: center; }
+  th:nth-child(5), td:nth-child(5) { text-align: center; }
   th:last-child, td:last-child { text-align: center; }
   th { background: var(--bg); color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; transition: color 0.2s; }
   th:hover { color: var(--accent); }
@@ -156,6 +159,7 @@ const SL = {
   'cumulative-rsi2': '累积RSI(2)', 'vix-spike': 'VIX恐慌'
 };
 function strategyLabel(t) { return SL[t] || t; }
+function timeframeLabel(t) { return t === '1wk' ? '周线' : '日线'; }
 function fmt(n) { return n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
 function cls(n) { return n == null ? '' : n >= 0 ? 'positive' : 'negative'; }
 function strengthBadge(n) {
@@ -193,6 +197,7 @@ function getFiltered() {
   const fMN = document.getElementById('f-min-next').value;
   const fM5 = document.getElementById('f-min-5d').value;
   const fStr = document.getElementById('f-strength').value;
+  const fTf = document.getElementById('f-timeframe').value;
   return allRecords.filter(r => {
     if (fS && r.symbol !== fS) return false;
     if (fSt && r.strategyType !== fSt) return false;
@@ -202,6 +207,7 @@ function getFiltered() {
     if (fMN !== '' && (r.nextDayChange == null || r.nextDayChange < parseFloat(fMN))) return false;
     if (fM5 !== '' && (r.maxGainIn5Days == null || r.maxGainIn5Days < parseFloat(fM5))) return false;
     if (fStr !== '' && (r.signalStrength == null || r.signalStrength !== parseInt(fStr))) return false;
+    if (fTf && r.timeframe !== fTf) return false;
     return true;
   });
 }
@@ -229,12 +235,13 @@ function renderTable() {
     if (icon) icon.textContent = th.dataset.col === sortCol ? (sortDir === 1 ? '▲' : '▼') : '';
   });
   if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="loading">无匹配记录</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">无匹配记录</td></tr>';
   } else {
     tbody.innerHTML = pageData.map(r => `<tr>
       <td><strong>${r.symbol}</strong></td>
       <td style="color:var(--muted)">${r.triggerDate}</td>
       <td>${strategyLabel(r.strategyType)}</td>
+      <td>${timeframeLabel(r.timeframe)}</td>
       <td style="text-align:center">${strengthBadge(r.signalStrength)}</td>
       <td class="${cls(r.triggerDayChange)}">${fmt(r.triggerDayChange)}</td>
       <td class="${cls(r.nextDayChange)}">${fmt(r.nextDayChange)}</td>
@@ -304,7 +311,7 @@ async function loadData(refresh) {
   const btn = document.getElementById('btn-run');
   btn.disabled = true;
   document.getElementById('status').textContent = '正在获取数据，请稍候...';
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="9" class="loading">⏳ 加载中...</td></tr>';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="10" class="loading">⏳ 加载中...</td></tr>';
   try {
     const res = await fetch('/api/monitor' + (refresh ? '?refresh=1' : ''));
     const data = await res.json();

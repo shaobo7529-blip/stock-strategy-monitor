@@ -56,10 +56,10 @@ async function withRetry<T>(
 }
 
 /** 直接调用 Yahoo Finance chart API */
-async function fetchHistory(symbol: string, startDate: Date, endDate: Date): Promise<DailyPrice[]> {
+async function fetchHistory(symbol: string, startDate: Date, endDate: Date, interval: string = '1d'): Promise<DailyPrice[]> {
   const p1 = Math.floor(startDate.getTime() / 1000);
   const p2 = Math.floor(endDate.getTime() / 1000);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${p1}&period2=${p2}&interval=1d&includePrePost=false`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${p1}&period2=${p2}&interval=${interval}&includePrePost=false`;
 
   const res = await fetch(url, fetchOptions);
   if (!res.ok) {
@@ -101,16 +101,18 @@ export async function fetchStockHistory(
   symbol: string, startDate: Date, endDate: Date,
   retryCount: number = DEFAULT_RETRY_COUNT,
   retryIntervalMs: number = DEFAULT_RETRY_INTERVAL_MS,
+  interval: string = '1d',
 ): Promise<Result<DailyPrice[], FetchError>> {
-  return withRetry(() => fetchHistory(symbol, startDate, endDate), symbol, retryCount, retryIntervalMs);
+  return withRetry(() => fetchHistory(symbol, startDate, endDate, interval), symbol, retryCount, retryIntervalMs);
 }
 
 export async function fetchIndexHistory(
   symbol: string, startDate: Date, endDate: Date,
   retryCount: number = DEFAULT_RETRY_COUNT,
   retryIntervalMs: number = DEFAULT_RETRY_INTERVAL_MS,
+  interval: string = '1d',
 ): Promise<Result<DailyPrice[], FetchError>> {
-  return withRetry(() => fetchHistory(symbol, startDate, endDate), symbol, retryCount, retryIntervalMs);
+  return withRetry(() => fetchHistory(symbol, startDate, endDate, interval), symbol, retryCount, retryIntervalMs);
 }
 
 export async function validateSymbol(symbol: string): Promise<boolean> {

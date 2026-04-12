@@ -78,10 +78,13 @@ export interface TriggerEvent {
   strategyType: string;
   /** 触发日涨跌幅 */
   triggerDayChange: number;
+  /** 时间周期：'1d' 日线 | '1wk' 周线 */
+  timeframe: string;
 }
 
 /** 触发记录（含后续表现） */
 export interface TriggerRecord extends TriggerEvent {
+  /** 时间周期继承自 TriggerEvent */
   /** 次日涨跌幅，null 表示待更新 */
   nextDayChange: number | null;
   /** 后续 5 天内最大收益（相对触发日收盘价），null 表示待更新 */

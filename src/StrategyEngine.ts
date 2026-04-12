@@ -313,6 +313,7 @@ export class StrategyEngine {
             triggerDate: stock.date,
             strategyType: cfg.type,
             triggerDayChange: stock.changePercent,
+            timeframe: '1d',
           });
         }
       }

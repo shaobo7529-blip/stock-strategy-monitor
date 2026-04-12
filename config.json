@@ -4,7 +4,8 @@
     "NFLX", "AMD", "INTC", "AVGO", "CRM", "ADBE", "ORCL",
     "CSCO", "QCOM", "TXN", "AMAT", "MU", "LRCX",
     "JPM", "V", "MA", "UNH", "JNJ", "PG", "KO",
-    "SPY", "QQQ", "DIA"
+    "SPY", "QQQ", "DIA",
+    "BTC-USD", "ETH-USD"
   ],
   "strategies": [
     {

@@ -4,7 +4,7 @@
 
 import { TriggerEvent, TriggerRecord } from './types';
 
-const CSV_HEADER = 'symbol,triggerDate,strategyType,triggerDayChange,nextDayChange,maxGainIn5Days,day5Change,status,signalStrength';
+const CSV_HEADER = 'symbol,triggerDate,strategyType,timeframe,triggerDayChange,nextDayChange,maxGainIn5Days,day5Change,status,signalStrength';
 
 export function serialize(records: TriggerRecord[]): string {
   const lines = [CSV_HEADER];
@@ -13,7 +13,7 @@ export function serialize(records: TriggerRecord[]): string {
     const maxGain5 = r.maxGainIn5Days === null ? '' : String(r.maxGainIn5Days);
     const day5 = r.day5Change === null ? '' : String(r.day5Change);
     const strength = r.signalStrength === null || r.signalStrength === undefined ? '' : String(r.signalStrength);
-    lines.push(`${r.symbol},${r.triggerDate},${r.strategyType},${r.triggerDayChange},${nextDay},${maxGain5},${day5},${r.status},${strength}`);
+    lines.push(`${r.symbol},${r.triggerDate},${r.strategyType},${r.timeframe || '1d'},${r.triggerDayChange},${nextDay},${maxGain5},${day5},${r.status},${strength}`);
   }
   return lines.join('\n');
 }
@@ -29,13 +29,33 @@ export function deserialize(csv: string): TriggerRecord[] {
 function parseLine(line: string): TriggerRecord {
   const parts = line.split(',');
   if (parts.length < 6) throw new Error(`Invalid CSV line: ${line}`);
+  // New format: symbol,triggerDate,strategyType,timeframe,triggerDayChange,...
+  // Old format: symbol,triggerDate,strategyType,triggerDayChange,...
+  const hasTimeframe = parts.length >= 10 || isNaN(Number(parts[3]));
+  if (hasTimeframe) {
+    const [symbol, triggerDate, strategyType, timeframe, triggerDayChangeStr, nextDayChangeStr] = parts;
+    const maxGainStr = parts[6] || '';
+    const day5Str = parts[7] || '';
+    const status = (parts[8] || 'pending') as 'completed' | 'pending';
+    const strengthStr = parts[9] || '';
+    return {
+      symbol, triggerDate, strategyType, timeframe: timeframe || '1d',
+      triggerDayChange: Number(triggerDayChangeStr),
+      nextDayChange: nextDayChangeStr === '' ? null : Number(nextDayChangeStr),
+      maxGainIn5Days: maxGainStr === '' || isNaN(Number(maxGainStr)) ? null : Number(maxGainStr),
+      day5Change: day5Str === '' || isNaN(Number(day5Str)) ? null : Number(day5Str),
+      signalStrength: strengthStr === '' || isNaN(Number(strengthStr)) ? null : Number(strengthStr),
+      status: (status === 'completed' || status === 'pending') ? status : 'pending',
+    };
+  }
+  // Legacy format without timeframe
   const [symbol, triggerDate, strategyType, triggerDayChangeStr, nextDayChangeStr] = parts;
   const maxGainStr = parts[5] || '';
   const day5Str = parts[6] || '';
   const status = (parts[7] || parts[5] || 'pending') as 'completed' | 'pending';
   const strengthStr = parts[8] || '';
   return {
-    symbol, triggerDate, strategyType,
+    symbol, triggerDate, strategyType, timeframe: '1d',
     triggerDayChange: Number(triggerDayChangeStr),
     nextDayChange: nextDayChangeStr === '' ? null : Number(nextDayChangeStr),
     maxGainIn5Days: maxGainStr === '' || isNaN(Number(maxGainStr)) ? null : Number(maxGainStr),
