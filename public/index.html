@@ -118,7 +118,10 @@
   tr:hover { background: rgba(59,130,246,0.05); }
   tr:nth-child(even) { background: rgba(17,24,39,0.3); }
   tr:nth-child(even):hover { background: rgba(59,130,246,0.05); }
-  .table-footer { padding: 10px 16px; font-size: 0.75rem; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; }
+  .table-footer { padding: 10px 16px; font-size: 0.75rem; color: var(--muted); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .pager a { color: var(--accent); cursor: pointer; padding: 4px 8px; text-decoration: none; }
+  .pager a:hover { text-decoration: underline; }
+  .pg-disabled { opacity: 0.3; padding: 4px 8px; }
   .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
   .badge-pending { background: rgba(234,179,8,0.15); color: var(--yellow); }
   .badge-completed { background: rgba(34,197,94,0.15); color: var(--green); }
@@ -143,6 +146,8 @@
 let allRecords = [];
 let sortCol = 'triggerDate';
 let sortDir = -1;
+let currentPage = 1;
+const PAGE_SIZE = 100;
 
 const SL = {
   'single-day-drop': '单日跌幅', 'underperform-benchmark': '跑输基准',
@@ -165,11 +170,12 @@ document.querySelector('thead').addEventListener('click', e => {
   const col = th.dataset.col;
   if (sortCol === col) sortDir *= -1;
   else { sortCol = col; sortDir = 1; }
+  currentPage = 1;
   renderTable();
 });
 
-document.getElementById('filters').addEventListener('change', () => renderTable());
-document.getElementById('filters').addEventListener('input', e => { if (e.target.tagName === 'INPUT') renderTable(); });
+document.getElementById('filters').addEventListener('change', () => { currentPage = 1; renderTable(); });
+document.getElementById('filters').addEventListener('input', e => { if (e.target.tagName === 'INPUT') { currentPage = 1; renderTable(); } });
 
 function resetFilters() {
   document.querySelectorAll('#filters select').forEach(s => s.value = '');
@@ -210,6 +216,10 @@ function getSorted(records) {
 function renderTable() {
   const filtered = getFiltered();
   const sorted = getSorted(filtered);
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageData = sorted.slice(start, start + PAGE_SIZE);
   const tbody = document.getElementById('tbody');
   document.querySelectorAll('th').forEach(th => {
     const icon = th.querySelector('.si');
@@ -218,7 +228,7 @@ function renderTable() {
   if (sorted.length === 0) {
     tbody.innerHTML = '<tr><td colspan="9" class="loading">无匹配记录</td></tr>';
   } else {
-    tbody.innerHTML = sorted.map(r => `<tr>
+    tbody.innerHTML = pageData.map(r => `<tr>
       <td><strong>${r.symbol}</strong></td>
       <td style="color:var(--muted)">${r.triggerDate}</td>
       <td>${strategyLabel(r.strategyType)}</td>
@@ -230,8 +240,19 @@ function renderTable() {
       <td><span class="badge badge-${r.status}">${r.status === 'completed' ? '✓ 完成' : '⏳ 待更新'}</span></td>
     </tr>`).join('');
   }
-  document.getElementById('record-count').innerHTML = `<span>显示 ${sorted.length} / ${allRecords.length} 条</span><span>排序: ${document.querySelector('th[data-col="'+sortCol+'"]')?.textContent?.trim() || sortCol} ${sortDir===1?'↑':'↓'}</span>`;
+  // 分页控件
+  let pager = '';
+  if (totalPages > 1) {
+    pager = `<span class="pager">`;
+    pager += currentPage > 1 ? `<a onclick="goPage(${currentPage-1})">◀ 上一页</a>` : `<span class="pg-disabled">◀ 上一页</span>`;
+    pager += ` 第 ${currentPage}/${totalPages} 页 `;
+    pager += currentPage < totalPages ? `<a onclick="goPage(${currentPage+1})">下一页 ▶</a>` : `<span class="pg-disabled">下一页 ▶</span>`;
+    pager += `</span>`;
+  }
+  document.getElementById('record-count').innerHTML = `<span>显示 ${start+1}-${Math.min(start+PAGE_SIZE, sorted.length)} / ${sorted.length} 条（共 ${allRecords.length}）</span>${pager}`;
 }
+
+function goPage(p) { currentPage = p; renderTable(); document.querySelector('.table-wrap').scrollTop = 0; }
 
 function populateFilters() {
   const symbols = [...new Set(allRecords.map(r => r.symbol))].sort();
