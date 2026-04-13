@@ -434,11 +434,13 @@ function removeStock(symbol) {
 }
 
 async function saveStocks() {
+  const pwd = prompt('请输入管理密码：');
+  if (!pwd) return;
   try {
     const res = await fetch('/api/stocks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stocks: currentStocks })
+      body: JSON.stringify({ stocks: currentStocks, password: pwd })
     });
     const data = await res.json();
     if (data.ok) {

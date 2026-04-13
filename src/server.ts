@@ -423,13 +423,19 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { stocks } = JSON.parse(body);
+        const parsed = JSON.parse(body);
+        // 密码验证
+        if (parsed.password !== 'shaobo2026') {
+          sendJSON(res, 403, { error: '密码错误' });
+          return;
+        }
+        const { stocks } = parsed;
         if (!Array.isArray(stocks)) { sendJSON(res, 400, { error: '需要 stocks 数组' }); return; }
         const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
         const config = JSON.parse(configJson);
         config.stockList = stocks;
         fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
-        cachedResult = null; // 清除缓存，下次请求重新拉数据
+        cachedResult = null;
         sendJSON(res, 200, { ok: true, stocks: config.stockList });
       } catch (err: any) {
         sendJSON(res, 500, { error: err.message });
