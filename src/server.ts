@@ -24,6 +24,8 @@ import {
   MAPullbackStrategy,
   CumulativeRSI2Strategy,
   VIXSpikeStrategy,
+  ExtremePanicStrategy,
+  HammerReversalStrategy,
 } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { generateCSV, generateConsoleSummary, calculateStats } from './ReportGenerator.js';
@@ -104,6 +106,8 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
   engine.registerStrategy(new MAPullbackStrategy());
   engine.registerStrategy(new CumulativeRSI2Strategy());
   engine.registerStrategy(new VIXSpikeStrategy());
+  engine.registerStrategy(new ExtremePanicStrategy());
+  engine.registerStrategy(new HammerReversalStrategy());
 
   // 不加载旧记录，每次全量重新计算避免重复
   const tracker = new TriggerTracker();
@@ -130,7 +134,7 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
       // 均线回踩和VIX恐慌不受此过滤
       const priceIdx = stockResult.value.findIndex(p => p.date === event.triggerDate);
       let ibsValue = 1; // 默认值（不过滤）
-      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
         const p = stockResult.value[priceIdx];
         const range = p.high - p.low;
         if (range > 0) {
@@ -226,7 +230,7 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
 
       const priceIdx = weeklyResult.value.findIndex(p => p.date === event.triggerDate);
       let ibsValue = 1;
-      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+      if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
         const p = weeklyResult.value[priceIdx];
         const range = p.high - p.low;
         if (range > 0) {
@@ -378,6 +382,8 @@ const server = http.createServer(async (req, res) => {
         calculateStats(cachedResult.records, 'ma-pullback'),
         calculateStats(cachedResult.records, 'cumulative-rsi2'),
         calculateStats(cachedResult.records, 'vix-spike'),
+        calculateStats(cachedResult.records, 'extreme-panic'),
+        calculateStats(cachedResult.records, 'hammer-reversal'),
       ].filter(s => s.totalTriggers > 0);
       sendJSON(res, 200, { stats });
     } catch (err: any) {

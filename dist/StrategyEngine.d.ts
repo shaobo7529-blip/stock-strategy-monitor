@@ -92,6 +92,30 @@ export declare class VIXSpikeStrategy implements Strategy {
     evaluate(_stock: DailyChange, benchmark: DailyChange | null, threshold: number): boolean;
 }
 /**
+ * 极度恐慌抄底策略 (Extreme Panic Dip Buy)
+ *
+ * 触发条件（全部满足）：
+ * 1. RSI(2) ≤ threshold（默认 3，极度超卖）
+ * 2. 价格低于布林带下轨（20日MA - 2倍标准差）
+ * 3. 成交量 ≥ 2.0x 5日均量（恐慌放量）
+ * 4. 价格在 200 日均线之上（牛市过滤）
+ */
+export declare class ExtremePanicStrategy implements Strategy {
+    readonly name = "extreme-panic";
+    evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean;
+}
+/**
+ * 锤子线反转策略 (Hammer Reversal)
+ *
+ * 两日模式：
+ * Day 1（昨日）：恐慌下跌（RSI(2)≤10 + IBS<0.5）
+ * Day 2（今日）：锤子线确认（IBS>0.7 + 长下影线 + 放量）
+ */
+export declare class HammerReversalStrategy implements Strategy {
+    readonly name = "hammer-reversal";
+    evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean;
+}
+/**
  * 策略引擎 — 注册策略并对日变动数据执行评估，收集触发事件
  */
 export declare class StrategyEngine {

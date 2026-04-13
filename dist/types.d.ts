@@ -1,5 +1,5 @@
 /** 策略类型 */
-export type StrategyType = 'single-day-drop' | 'underperform-benchmark' | 'rsi2-oversold' | 'consecutive-down-days' | 'ma-pullback' | 'cumulative-rsi2' | 'vix-spike';
+export type StrategyType = 'single-day-drop' | 'underperform-benchmark' | 'rsi2-oversold' | 'consecutive-down-days' | 'ma-pullback' | 'cumulative-rsi2' | 'vix-spike' | 'extreme-panic' | 'hammer-reversal';
 /** 策略配置 */
 export interface StrategyConfig {
     type: StrategyType;

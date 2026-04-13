@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import * as url from 'node:url';
 import { parse } from './ConfigParser.js';
 import { fetchStockHistory, fetchIndexHistory, validateSymbol, calculateDailyChanges, } from './DataFetcher.js';
-import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, } from './StrategyEngine.js';
+import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, ExtremePanicStrategy, HammerReversalStrategy, } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { generateCSV, calculateStats } from './ReportGenerator.js';
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -76,6 +76,8 @@ async function runMonitor(configPath, triggersPath) {
     engine.registerStrategy(new MAPullbackStrategy());
     engine.registerStrategy(new CumulativeRSI2Strategy());
     engine.registerStrategy(new VIXSpikeStrategy());
+    engine.registerStrategy(new ExtremePanicStrategy());
+    engine.registerStrategy(new HammerReversalStrategy());
     // 不加载旧记录，每次全量重新计算避免重复
     const tracker = new TriggerTracker();
     for (const symbol of validSymbols) {
@@ -98,7 +100,7 @@ async function runMonitor(configPath, triggersPath) {
             // 均线回踩和VIX恐慌不受此过滤
             const priceIdx = stockResult.value.findIndex(p => p.date === event.triggerDate);
             let ibsValue = 1; // 默认值（不过滤）
-            if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+            if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
                 const p = stockResult.value[priceIdx];
                 const range = p.high - p.low;
                 if (range > 0) {
@@ -195,7 +197,7 @@ async function runMonitor(configPath, triggersPath) {
             }
             const priceIdx = weeklyResult.value.findIndex(p => p.date === event.triggerDate);
             let ibsValue = 1;
-            if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike') {
+            if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
                 const p = weeklyResult.value[priceIdx];
                 const range = p.high - p.low;
                 if (range > 0) {
@@ -339,6 +341,8 @@ const server = http.createServer(async (req, res) => {
                 calculateStats(cachedResult.records, 'ma-pullback'),
                 calculateStats(cachedResult.records, 'cumulative-rsi2'),
                 calculateStats(cachedResult.records, 'vix-spike'),
+                calculateStats(cachedResult.records, 'extreme-panic'),
+                calculateStats(cachedResult.records, 'hammer-reversal'),
             ].filter(s => s.totalTriggers > 0);
             sendJSON(res, 200, { stats });
         }

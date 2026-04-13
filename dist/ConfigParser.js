@@ -1,6 +1,6 @@
 const VALID_SYMBOL_REGEX = /^[A-Z0-9^.\-]{1,12}$/;
 const MAX_STOCK_COUNT = 50;
-const VALID_STRATEGY_TYPES = ['single-day-drop', 'underperform-benchmark', 'rsi2-oversold', 'consecutive-down-days', 'ma-pullback', 'cumulative-rsi2', 'vix-spike'];
+const VALID_STRATEGY_TYPES = ['single-day-drop', 'underperform-benchmark', 'rsi2-oversold', 'consecutive-down-days', 'ma-pullback', 'cumulative-rsi2', 'vix-spike', 'extreme-panic', 'hammer-reversal'];
 function isObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

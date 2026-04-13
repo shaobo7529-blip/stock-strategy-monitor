@@ -256,6 +256,104 @@ export class VIXSpikeStrategy implements Strategy {
 
 
 /**
+ * 极度恐慌抄底策略 (Extreme Panic Dip Buy)
+ * 
+ * 触发条件（全部满足）：
+ * 1. RSI(2) ≤ threshold（默认 3，极度超卖）
+ * 2. 价格低于布林带下轨（20日MA - 2倍标准差）
+ * 3. 成交量 ≥ 2.0x 5日均量（恐慌放量）
+ * 4. 价格在 200 日均线之上（牛市过滤）
+ */
+export class ExtremePanicStrategy implements Strategy {
+  readonly name = 'extreme-panic';
+
+  evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean {
+    if (!context || context.length < 2 || !priceHistory || priceHistory.length < 21) return false;
+
+    const today = priceHistory[priceHistory.length - 1];
+
+    // 1. RSI(2) ≤ threshold (default 3)
+    const changes = [...context.slice(-1), _stock];
+    let totalGain = 0, totalLoss = 0;
+    for (const c of changes) {
+      if (c.changePercent > 0) totalGain += c.changePercent;
+      else totalLoss += Math.abs(c.changePercent);
+    }
+    const avgGain = totalGain / 2, avgLoss = totalLoss / 2;
+    if (avgLoss === 0) return false;
+    const rsi = 100 - 100 / (1 + avgGain / avgLoss);
+    if (rsi > threshold) return false;
+
+    // 2. Price below Bollinger Band lower (20, 2)
+    if (priceHistory.length < 20) return false;
+    const last20 = priceHistory.slice(-20);
+    const ma20 = last20.reduce((s, p) => s + p.close, 0) / 20;
+    const stdDev = Math.sqrt(last20.reduce((s, p) => s + (p.close - ma20) ** 2, 0) / 20);
+    const lowerBand = ma20 - 2 * stdDev;
+    if (today.close >= lowerBand) return false;
+
+    // 3. Volume ≥ 2.0x 5-day average
+    if (priceHistory.length < 6) return false;
+    const vol5 = priceHistory.slice(-6, -1).reduce((s, p) => s + p.volume, 0) / 5;
+    if (vol5 <= 0 || today.volume < vol5 * 2.0) return false;
+
+    // 4. Price above 200-day MA
+    const allPrices = [...context, _stock];
+    const lookback = Math.min(allPrices.length, 200);
+    const ma200 = allPrices.slice(-lookback).reduce((s, c) => s + c.closePrice, 0) / lookback;
+    if (_stock.closePrice <= ma200) return false;
+
+    return true;
+  }
+}
+
+/**
+ * 锤子线反转策略 (Hammer Reversal)
+ * 
+ * 两日模式：
+ * Day 1（昨日）：恐慌下跌（RSI(2)≤10 + IBS<0.5）
+ * Day 2（今日）：锤子线确认（IBS>0.7 + 长下影线 + 放量）
+ */
+export class HammerReversalStrategy implements Strategy {
+  readonly name = 'hammer-reversal';
+
+  evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean {
+    if (!context || context.length < 2 || !priceHistory || priceHistory.length < 3) return false;
+
+    const today = priceHistory[priceHistory.length - 1];
+    const yesterday = priceHistory[priceHistory.length - 2];
+
+    // Day 1 (yesterday): panic drop
+    const yRange = yesterday.high - yesterday.low;
+    if (yRange <= 0) return false;
+    const yIBS = (yesterday.close - yesterday.low) / yRange;
+    if (yIBS >= 0.5) return false; // yesterday must close in lower half (panic)
+
+    // Yesterday must have been a down day
+    const yChange = context[context.length - 1];
+    if (!yChange || yChange.changePercent >= 0) return false; // must be a down day
+
+    // Day 2 (today): hammer candlestick
+    const tRange = today.high - today.low;
+    if (tRange <= 0) return false;
+    const tIBS = (today.close - today.low) / tRange;
+    if (tIBS < 0.7) return false; // close in upper 30% of range (hammer body)
+
+    // Hammer: lower shadow must be at least 2x the body
+    const body = Math.abs(today.close - today.open);
+    const lowerShadow = Math.min(today.open, today.close) - today.low;
+    if (body > 0 && lowerShadow < body * 2) return false;
+
+    // Volume confirmation: today's volume ≥ 1.2x 5-day average
+    if (priceHistory.length < 6) return false;
+    const vol5 = priceHistory.slice(-6, -1).reduce((s, p) => s + p.volume, 0) / 5;
+    if (vol5 <= 0 || today.volume < vol5 * 1.2) return false;
+
+    return true;
+  }
+}
+
+/**
  * 策略引擎 — 注册策略并对日变动数据执行评估，收集触发事件
  */
 export class StrategyEngine {
