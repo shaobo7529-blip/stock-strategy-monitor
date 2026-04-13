@@ -54,25 +54,41 @@
     <div class="guide-toggle" onclick="this.parentElement.classList.toggle('open')">📖 操作策略指南（点击展开）</div>
     <div class="guide-content">
       <div class="guide-section">
-        <div class="guide-title">🎯 核心发现</div>
-        <div>次日胜率 55-60%，但 5 日胜率 81-83%。<strong style="color:var(--accent)">不适合做次日交易，适合持有 3-5 天。</strong></div>
+        <div class="guide-title">🎯 核心发现（基于最新回测数据）</div>
+        <div>次日胜率 57-64%，5 日胜率 81-86%。<strong style="color:var(--accent)">不适合做次日交易，适合持有 3-5 天。</strong></div>
       </div>
       <div class="guide-grid">
-        <div class="guide-card" style="border-left:3px solid var(--green)">
-          <div class="guide-card-title">🥇 第一优先：累积RSI(2) 强信号</div>
-          <div>强度3：68.2%次日胜率，均值+0.96%</div>
-          <div>5日内82.8%正收益，平均+2.98%</div>
-          <div style="color:var(--accent);margin-top:4px">→ 看到强度3的累积RSI，次日开盘买入，持有3-5天</div>
+        <div class="guide-card" style="border-left:3px solid #f59e0b">
+          <div class="guide-card-title">⚡ 极致恐慌（RSI≤3+布林下轨+2x放量）</div>
+          <div>次日胜率 <strong>63.6%</strong>（最高）| 5日胜率 <strong>86.4%</strong></div>
+          <div>5日均值 +2.65% | 触发22次（稀有但精准）</div>
+          <div style="color:var(--accent);margin-top:4px">→ 极端恐慌时果断买入，持有3-5天</div>
         </div>
-        <div class="guide-card" style="border-left:3px solid var(--yellow)">
-          <div class="guide-card-title">🥈 第二优先：连续下跌3天</div>
-          <div>5日胜率83%，5日均值+3.14%（最高）</div>
+        <div class="guide-card" style="border-left:3px solid var(--green)">
+          <div class="guide-card-title">🥇 累积RSI<35+MA200上方</div>
+          <div>次日胜率 <strong>60.0%</strong> | 5日胜率 <strong>82.9%</strong></div>
+          <div>5日均值 +3.00% | 触发380次（样本充足）</div>
+          <div style="color:var(--accent);margin-top:4px">→ 最稳定的策略，强信号优先操作</div>
+        </div>
+        <div class="guide-card" style="border-left:3px solid var(--green)">
+          <div class="guide-card-title">🥈 连跌≥3日+牛市</div>
+          <div>次日胜率 <strong>59.6%</strong> | 5日胜率 <strong>83.1%</strong></div>
+          <div>5日均值 +3.16% | 触发450次</div>
           <div style="color:var(--accent);margin-top:4px">→ 连跌3天后买入，耐心持有5天</div>
         </div>
-        <div class="guide-card" style="border-left:3px solid var(--red)">
-          <div class="guide-card-title">🥉 第三优先：VIX恐慌</div>
-          <div>次日胜率51%（别急），5日胜率83%，均值+4.09%</div>
+        <div class="guide-card" style="border-left:3px solid var(--muted)">
+          <div class="guide-card-title">🥉 VIX恐慌（大盘急跌≥3%）</div>
+          <div>次日胜率 51.3%（别急）| 5日胜率 <strong>83.0%</strong></div>
+          <div>5日均值 <strong>+4.08%</strong>（收益最高）| 触发448次</div>
           <div style="color:var(--accent);margin-top:4px">→ 大盘急跌别追，等1-2天企稳再买</div>
+        </div>
+      </div>
+      <div class="guide-section">
+        <div class="guide-title">📊 策略对比总结</div>
+        <div style="font-size:0.75rem;line-height:1.8">
+          <strong>已启用（4个）：</strong>连跌3日、累积RSI、极致恐慌、VIX恐慌<br>
+          <strong>已关闭（5个）：</strong>RSI(2)≤10（与累积RSI重叠）、均线回踩（样本太少）、锤子线反转（次日胜率低）、单日跌幅、跑输基准<br>
+          <strong>关键结论：</strong>所有策略的5日胜率都在81-86%，说明持有3-5天是最佳持有期
         </div>
       </div>
       <div class="guide-section">
@@ -85,7 +101,19 @@
       </div>
       <div class="guide-section">
         <div class="guide-title">📅 每日操作流程</div>
-        <div>① 早上看网页，筛选「信号强度=强」 → ② 只看高胜率股票 → ③ 买入设-5%止损 → ④ 持有3-5天 → ⑤ +8%以上止盈</div>
+        <div>① 美股收盘后看网页 → ② 筛选「信号强度=强」→ ③ 只看高胜率股票 → ④ 次日开盘买入，设-5%止损 → ⑤ 持有3-5天 → ⑥ +8%以上止盈</div>
+      </div>
+      <div class="guide-section">
+        <div class="guide-title">📖 指标说明手册</div>
+        <div style="font-size:0.75rem;line-height:1.8">
+          <strong>触发日涨跌：</strong>策略触发当天的股价涨跌幅<br>
+          <strong>次日涨跌：</strong>触发后第一个交易日的涨跌幅（用于评估次日胜率）<br>
+          <strong>5日最大：</strong>触发后5个交易日内出现的最大收益（用于评估持有期最佳收益）<br>
+          <strong>第5日：</strong>触发后第5个交易日的涨跌幅（含-5%止损截断）<br>
+          <strong>信号强度：</strong>1-3分。+1=SPY牛市，+1=IBS<0.3（强超卖），+1=放量≥1.5x。3分=强信号<br>
+          <strong>周期：</strong>日线(1d)=每日K线数据，周线(1wk)=每周K线数据<br>
+          <strong>结果：</strong>✅止盈=5日最大≥10%，❌止损=第5日≤-5%，📊已结算=正常结束
+        </div>
       </div>
     </div>
   </div>

@@ -21,7 +21,7 @@
     {
       "type": "rsi2-oversold",
       "threshold": 10,
-      "enabled": true
+      "enabled": false
     },
     {
       "type": "consecutive-down-days",
@@ -51,7 +51,7 @@
     {
       "type": "hammer-reversal",
       "threshold": 10,
-      "enabled": true
+      "enabled": false
     }
   ],
   "dataSource": {
