@@ -31,7 +31,7 @@
     {
       "type": "ma-pullback",
       "threshold": 2,
-      "enabled": true
+      "enabled": false
     },
     {
       "type": "cumulative-rsi2",
