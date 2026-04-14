@@ -326,8 +326,23 @@ function renderTable() {
     tbody.innerHTML = '<tr><td colspan="10" class="loading">无匹配记录</td></tr>';
   } else {
     tbody.innerHTML = pageData.map(r => {
-      const tp = r.maxGainIn5Days != null && r.maxGainIn5Days >= 10 ? '✅止盈' : r.day5Change != null && r.day5Change <= -5 ? '❌止损' : r.status === 'completed' ? '📊已结算' : '⏳持有中';
-      const tpCls = r.maxGainIn5Days != null && r.maxGainIn5Days >= 10 ? 'positive' : r.day5Change != null && r.day5Change <= -5 ? 'negative' : '';
+      // 计算触发日到今天的交易日数（粗略用自然日/1.4估算）
+      const daysSince = Math.floor((Date.now() - new Date(r.triggerDate).getTime()) / (1000*60*60*24));
+      const tradingDays = Math.floor(daysSince * 5 / 7); // 粗略估算交易日
+      const inHoldingPeriod = tradingDays < 6; // 还在5个交易日持有期内
+      
+      let tp, tpCls;
+      if (r.maxGainIn5Days != null && r.maxGainIn5Days >= 10) {
+        tp = '✅止盈'; tpCls = 'positive';
+      } else if (r.day5Change != null && r.day5Change <= -5) {
+        tp = '❌止损'; tpCls = 'negative';
+      } else if (inHoldingPeriod && r.status === 'completed') {
+        tp = '⏳持有中'; tpCls = '';
+      } else if (r.status === 'completed') {
+        tp = '📊已结算'; tpCls = '';
+      } else {
+        tp = '⏳持有中'; tpCls = '';
+      }
       return `<tr>
       <td><strong>${r.symbol}</strong></td>
       <td style="color:var(--muted)">${r.triggerDate}</td>
