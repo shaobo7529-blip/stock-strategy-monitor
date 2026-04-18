@@ -592,12 +592,12 @@ function searchStock(query) {
   
   if (localResults.length > 0) {
     dropdown.innerHTML = localResults.map(r =>
-      `<div class="search-item" onclick="selectStock('${r.symbol}')"><span><span class="sym">${r.symbol}</span> ${stockName(r.symbol)}</span><span class="name">${r.name}</span></div>`
+      `<div class="search-item" onclick="selectStockFromSearch('${r.symbol}','${(stockName(r.symbol) || r.name || '').replace(/'/g, '')}')"><span><span class="sym">${r.symbol}</span> ${stockName(r.symbol)}</span><span class="name">${r.name}</span></div>`
     ).join('');
     dropdown.classList.add('show');
   }
   
-  // 同时调 Yahoo API 补充结果
+  // 同时调 Yahoo + 东方财富 API 补充结果
   searchTimer = setTimeout(async () => {
     try {
       const res = await fetch('/api/search?q=' + encodeURIComponent(query));
@@ -605,9 +605,10 @@ function searchStock(query) {
       const apiResults = (data.results || []).filter(r => !localResults.some(l => l.symbol === r.symbol));
       const allResults = [...localResults, ...apiResults].slice(0, 10);
       if (allResults.length > 0) {
-        dropdown.innerHTML = allResults.map(r =>
-          `<div class="search-item" onclick="selectStock('${r.symbol}')"><span><span class="sym">${r.symbol}</span> ${stockName(r.symbol) !== r.symbol ? stockName(r.symbol) : r.name}</span><span class="name">${r.exchange}</span></div>`
-        ).join('');
+        dropdown.innerHTML = allResults.map(r => {
+          const displayName = stockName(r.symbol) !== r.symbol ? stockName(r.symbol) : r.name;
+          return `<div class="search-item" onclick="selectStockFromSearch('${r.symbol}','${(r.name || displayName || '').replace(/'/g, '')}')"><span><span class="sym">${r.symbol}</span> ${displayName}</span><span class="name">${r.exchange}</span></div>`;
+        }).join('');
         dropdown.classList.add('show');
       } else if (localResults.length === 0) {
         dropdown.classList.remove('show');
@@ -617,6 +618,16 @@ function searchStock(query) {
 }
 
 function selectStock(symbol) {
+  document.getElementById('new-stock').value = symbol;
+  hideSearch();
+  addStock();
+}
+
+// 搜索结果点击时同时保存中文名
+function selectStockFromSearch(symbol, name) {
+  if (name && !STOCK_NAMES[symbol]) {
+    STOCK_NAMES[symbol] = name;
+  }
   document.getElementById('new-stock').value = symbol;
   hideSearch();
   addStock();
