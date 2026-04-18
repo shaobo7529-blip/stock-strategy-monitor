@@ -151,6 +151,14 @@
         <label>周期<select id="f-timeframe"><option value="">全部</option><option value="1d">日线(1d)</option><option value="1wk">周线(1wk)</option></select></label>
         <button class="btn btn-secondary" onclick="resetFilters()" style="align-self:flex-end;padding:6px 12px;font-size:0.75rem">重置</button>
       </div>
+      <div class="filter-row" style="margin-top:8px;gap:6px">
+        <span style="font-size:0.7rem;color:var(--muted);align-self:center">快捷：</span>
+        <button class="btn btn-secondary" onclick="setDateRange(0)" style="padding:4px 10px;font-size:0.7rem">今天</button>
+        <button class="btn btn-secondary" onclick="setDateRange(1)" style="padding:4px 10px;font-size:0.7rem">昨天</button>
+        <button class="btn btn-secondary" onclick="setDateRange(7)" style="padding:4px 10px;font-size:0.7rem">近7天</button>
+        <button class="btn btn-secondary" onclick="setDateRange(30)" style="padding:4px 10px;font-size:0.7rem">近30天</button>
+        <button class="btn btn-secondary" onclick="setDateRange(90)" style="padding:4px 10px;font-size:0.7rem">近3月</button>
+      </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -305,6 +313,25 @@ document.getElementById('filters').addEventListener('input', e => { if (e.target
 function resetFilters() {
   document.querySelectorAll('#filters select').forEach(s => s.value = '');
   document.querySelectorAll('#filters input').forEach(i => i.value = '');
+  renderTable();
+}
+
+function setDateRange(days) {
+  const to = new Date();
+  const from = new Date();
+  if (days === 0) { // 今天
+    document.getElementById('f-date-from').value = to.toISOString().split('T')[0];
+    document.getElementById('f-date-to').value = to.toISOString().split('T')[0];
+  } else if (days === 1) { // 昨天
+    from.setDate(from.getDate() - 1);
+    document.getElementById('f-date-from').value = from.toISOString().split('T')[0];
+    document.getElementById('f-date-to').value = from.toISOString().split('T')[0];
+  } else {
+    from.setDate(from.getDate() - days);
+    document.getElementById('f-date-from').value = from.toISOString().split('T')[0];
+    document.getElementById('f-date-to').value = '';
+  }
+  currentPage = 1;
   renderTable();
 }
 
