@@ -123,7 +123,7 @@
     </div>
   </div>
   <div class="stock-panel hidden" id="stock-panel">
-    <div class="panel-title">📋 股票列表管理</div>
+    <div class="panel-title" id="panel-title">📋 股票列表管理</div>
     <div class="stock-tags" id="stock-tags"></div>
     <div class="stock-input-row">
       <div class="search-wrap">
@@ -477,21 +477,27 @@ async function loadData(refresh) {
 }
 function downloadCSV() { window.open('/api/csv', '_blank'); }
 
-// --- 股票管理 ---
+// --- 股票管理（支持分组）---
 let currentStocks = [];
 
 async function loadStocks() {
   try {
-    const res = await fetch('/api/stocks');
-    const data = await res.json();
-    currentStocks = data.stocks || [];
+    if (activeGroup !== null && groups[activeGroup]) {
+      currentStocks = [...groups[activeGroup].symbols];
+      document.getElementById('panel-title').textContent = `📋 ${groups[activeGroup].name} - 股票管理`;
+    } else {
+      const res = await fetch('/api/stocks');
+      const data = await res.json();
+      currentStocks = data.stocks || [];
+      document.getElementById('panel-title').textContent = '📋 全部股票管理';
+    }
     renderStockTags();
   } catch(e) { console.error('加载股票列表失败', e); }
 }
 
 function renderStockTags() {
   document.getElementById('stock-tags').innerHTML = currentStocks.map(s =>
-    `<span class="stock-tag">${s}<span class="remove" onclick="removeStock('${s}')">✕</span></span>`
+    `<span class="stock-tag">${stockName(s)}<span class="remove" onclick="removeStock('${s}')">✕</span></span>`
   ).join('');
 }
 
@@ -499,31 +505,48 @@ function addStock() {
   const input = document.getElementById('new-stock');
   const val = input.value.trim().toUpperCase();
   if (!val) return;
-  if (currentStocks.includes(val)) { document.getElementById('stock-hint').textContent = `${val} 已存在`; return; }
+  if (currentStocks.includes(val)) { document.getElementById('stock-hint').textContent = `${stockName(val)} 已存在`; return; }
   currentStocks.push(val);
   input.value = '';
   renderStockTags();
-  document.getElementById('stock-hint').textContent = `已添加 ${val}（点保存生效）`;
+  document.getElementById('stock-hint').textContent = `已添加 ${stockName(val)}（点保存生效）`;
 }
 
 function removeStock(symbol) {
   currentStocks = currentStocks.filter(s => s !== symbol);
   renderStockTags();
-  document.getElementById('stock-hint').textContent = `已移除 ${symbol}（点保存生效）`;
+  document.getElementById('stock-hint').textContent = `已移除 ${stockName(symbol)}（点保存生效）`;
 }
 
 async function saveStocks() {
   try {
-    const res = await fetch('/api/stocks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stocks: currentStocks })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('stock-hint').textContent = `✅ 已保存 ${currentStocks.length} 只股票，点运行监控刷新数据`;
+    if (activeGroup !== null && groups[activeGroup]) {
+      // 保存到分组
+      groups[activeGroup].symbols = [...currentStocks];
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groups })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('stock-hint').textContent = `✅ 已保存 ${groups[activeGroup].name}（${currentStocks.length} 只），新股票已同步到全部列表`;
+      } else {
+        document.getElementById('stock-hint').textContent = `❌ ${data.error}`;
+      }
     } else {
-      document.getElementById('stock-hint').textContent = `❌ ${data.error}`;
+      // 保存到主列表
+      const res = await fetch('/api/stocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stocks: currentStocks })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        document.getElementById('stock-hint').textContent = `✅ 已保存 ${currentStocks.length} 只股票，点运行监控刷新数据`;
+      } else {
+        document.getElementById('stock-hint').textContent = `❌ ${data.error}`;
+      }
     }
   } catch(e) { document.getElementById('stock-hint').textContent = `❌ 保存失败: ${e.message}`; }
 }
@@ -631,6 +654,7 @@ function switchTab(idx) {
   currentPage = 1;
   renderTabs();
   renderTable();
+  loadStocks(); // 切换页签时刷新股票管理面板
 }
 
 loadGroups();

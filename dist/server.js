@@ -397,6 +397,15 @@ const server = http.createServer(async (req, res) => {
                 const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
                 const config = JSON.parse(configJson);
                 config.stockList = stocks;
+                // 同步：确保所有 group 里的股票也在 stockList 中
+                if (config.groups) {
+                    for (const g of config.groups) {
+                        for (const sym of (g.symbols || [])) {
+                            if (!config.stockList.includes(sym))
+                                config.stockList.push(sym);
+                        }
+                    }
+                }
                 fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
                 cachedResult = null;
                 sendJSON(res, 200, { ok: true, stocks: config.stockList });
@@ -415,7 +424,6 @@ const server = http.createServer(async (req, res) => {
             return;
         }
         try {
-            const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&listsCount=0&enableFuzzyQuery=true`;
             const fetchMod = await import('node-fetch');
             const fetch = fetchMod.default;
             const PROXY_URL = process.env.HTTPS_PROXY || process.env.https_proxy || '';
@@ -424,15 +432,43 @@ const server = http.createServer(async (req, res) => {
                 const { HttpsProxyAgent } = await import('https-proxy-agent');
                 fetchOpts = { agent: new HttpsProxyAgent(PROXY_URL) };
             }
-            const searchRes = await fetch(searchUrl, fetchOpts);
-            const searchData = await searchRes.json();
-            const quotes = (searchData?.quotes || []).map((q) => ({
-                symbol: q.symbol,
-                name: q.shortname || q.longname || '',
-                type: q.quoteType || '',
-                exchange: q.exchange || '',
-            }));
-            sendJSON(res, 200, { results: quotes });
+            const results = [];
+            // 1. 东方财富搜索（支持中文、拼音、代码）
+            try {
+                const emUrl = `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(query)}&type=14&token=D43BF722C8E33BDC906FB84D85E326E8&count=8`;
+                const emRes = await fetch(emUrl, fetchOpts);
+                const emData = await emRes.json();
+                const emItems = emData?.QuotationCodeTable?.Data || [];
+                for (const item of emItems) {
+                    const jys = item.JYS;
+                    let suffix = '';
+                    if (jys === '71' || item.SecurityTypeName?.includes('沪'))
+                        suffix = '.SS';
+                    else if (jys === '80' || item.SecurityTypeName?.includes('深'))
+                        suffix = '.SZ';
+                    else if (jys === '116' || item.SecurityTypeName?.includes('港'))
+                        suffix = '.HK';
+                    if (suffix) {
+                        const code = suffix === '.HK' ? item.Code.padStart(4, '0') : item.Code;
+                        results.push({ symbol: code + suffix, name: item.Name, type: item.Classify, exchange: item.SecurityTypeName || '' });
+                    }
+                }
+            }
+            catch { /* eastmoney failed, continue */ }
+            // 2. Yahoo Finance 搜索（美股为主）
+            try {
+                const yahooUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&listsCount=0&enableFuzzyQuery=true`;
+                const yahooRes = await fetch(yahooUrl, fetchOpts);
+                const yahooData = await yahooRes.json();
+                const yahooQuotes = yahooData?.quotes || [];
+                for (const q of yahooQuotes) {
+                    if (!results.some(r => r.symbol === q.symbol)) {
+                        results.push({ symbol: q.symbol, name: q.shortname || q.longname || '', type: q.quoteType || '', exchange: q.exchange || '' });
+                    }
+                }
+            }
+            catch { /* yahoo failed, continue */ }
+            sendJSON(res, 200, { results: results.slice(0, 12) });
         }
         catch (err) {
             sendJSON(res, 200, { results: [] });
@@ -461,7 +497,15 @@ const server = http.createServer(async (req, res) => {
                 const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
                 const config = JSON.parse(configJson);
                 config.groups = parsed.groups;
+                // 同步：确保所有 group 里的股票也在 stockList 中
+                for (const g of (config.groups || [])) {
+                    for (const sym of (g.symbols || [])) {
+                        if (!config.stockList.includes(sym))
+                            config.stockList.push(sym);
+                    }
+                }
                 fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
+                cachedResult = null;
                 sendJSON(res, 200, { ok: true });
             }
             catch (err) {
