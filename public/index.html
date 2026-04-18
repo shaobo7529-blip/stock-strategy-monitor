@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>邵波的美股策略优化</title>
+<title>Optimized U.S. Stock Strategy of Zaccheo</title>
 <style>
   :root { --bg: #0a0e1a; --card: #111827; --border: #1e293b; --text: #e2e8f0; --muted: #64748b; --accent: #3b82f6; --green: #22c55e; --red: #ef4444; --yellow: #eab308; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,8 +39,8 @@
 </head>
 <body>
 <div class="header">
-  <h1>📊 <span>邵波的</span>美股策略优化</h1>
-  <div class="subtitle">实时监控 · 多策略回测 · 数据驱动决策</div>
+  <h1>📊 <span>Optimized U.S. Stock Strategy</span> of Zaccheo</h1>
+  <div class="subtitle">Real-time Monitoring · Multi-Strategy Backtesting · Data-Driven Decisions</div>
 </div>
 <div class="container">
   <div class="toolbar">
@@ -264,6 +264,18 @@ const SL = {
   'hammer-reversal': '恐慌后锤子线反转确认'
 };
 function strategyLabel(t) { return SL[t] || t; }
+
+const STOCK_NAMES = {
+  'AAPL':'苹果','MSFT':'微软','GOOGL':'谷歌','AMZN':'亚马逊','NVDA':'英伟达','META':'Meta',
+  'TSLA':'特斯拉','NFLX':'奈飞','AMD':'超微半导体','INTC':'英特尔','AVGO':'博通','CRM':'Salesforce',
+  'ADBE':'Adobe','ORCL':'甲骨文','CSCO':'思科','QCOM':'高通','TXN':'德州仪器','AMAT':'应用材料',
+  'MU':'美光科技','LRCX':'拉姆研究','JPM':'摩根大通','V':'Visa','MA':'万事达','UNH':'联合健康',
+  'JNJ':'强生','PG':'宝洁','KO':'可口可乐','SPY':'标普500ETF','QQQ':'纳指100ETF','DIA':'道琼斯ETF',
+  'BTC-USD':'比特币','ETH-USD':'以太坊',
+  '600519.SS':'贵州茅台','601318.SS':'中国平安','000858.SZ':'五粮液','300803.SZ':'指南针',
+  '0700.HK':'腾讯控股','9988.HK':'阿里巴巴','3690.HK':'美团','1810.HK':'小米集团','1211.HK':'比亚迪',
+};
+function stockName(sym) { return STOCK_NAMES[sym] || sym; }
 function timeframeLabel(t) { return t === '1wk' ? '周线' : '日线'; }
 function fmt(n) { return n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%'; }
 function cls(n) { return n == null ? '' : n >= 0 ? 'positive' : 'negative'; }
@@ -366,7 +378,7 @@ function renderTable() {
         tp = '⏳持有中'; tpCls = '';
       }
       return `<tr>
-      <td><strong>${r.symbol}</strong></td>
+      <td><strong>${stockName(r.symbol)}</strong></td>
       <td style="color:var(--muted)">${r.triggerDate}</td>
       <td style="font-size:0.7rem">${strategyLabel(r.strategyType)}</td>
       <td>${timeframeLabel(r.timeframe)}</td>
@@ -431,7 +443,7 @@ function goPage(p) { currentPage = p; renderTable(); document.querySelector('.ta
 function populateFilters() {
   const symbols = [...new Set(allRecords.map(r => r.symbol))].sort();
   const strategies = [...new Set(allRecords.map(r => r.strategyType))];
-  document.getElementById('f-symbol').innerHTML = '<option value="">全部</option>' + symbols.map(s => `<option value="${s}">${s}</option>`).join('');
+  document.getElementById('f-symbol').innerHTML = '<option value="">全部</option>' + symbols.map(s => `<option value="${s}">${stockName(s)}</option>`).join('');
   document.getElementById('f-strategy').innerHTML = '<option value="">全部</option>' + strategies.map(s => `<option value="${s}">${strategyLabel(s)}</option>`).join('');
 }
 
