@@ -48,6 +48,7 @@
     <button class="btn btn-secondary" id="btn-csv" onclick="downloadCSV()">📥 下载 CSV</button>
     <button class="btn btn-secondary" onclick="document.getElementById('filters').classList.toggle('hidden')">🔍 筛选</button>
     <button class="btn btn-secondary" onclick="document.getElementById('stock-panel').classList.toggle('hidden')">⚙️ 管理股票</button>
+    <button class="btn btn-secondary" onclick="startScan()">🔍 扫描大盘股</button>
     <div class="status-bar" id="status">点击「运行监控」开始</div>
   </div>
   <div class="tab-bar" id="tab-bar"></div>
@@ -318,7 +319,16 @@ function getFiltered() {
   const fStr = document.getElementById('f-strength').value;
   const fTf = document.getElementById('f-timeframe').value;
   let baseRecords = allRecords;
-  if (activeGroup !== null && groups[activeGroup]) {
+  if (activeGroup === 'scan') {
+    if (scanData && scanData.signals) {
+      baseRecords = scanData.signals.map(s => ({
+        ...s, nextDayChange: null, maxGainIn5Days: null, day5Change: null,
+        signalStrength: null, status: 'pending'
+      }));
+    } else {
+      baseRecords = [];
+    }
+  } else if (activeGroup !== null && groups[activeGroup]) {
     const groupSymbols = new Set(groups[activeGroup].symbols);
     baseRecords = allRecords.filter(r => groupSymbols.has(r.symbol));
   }
@@ -671,6 +681,7 @@ function renderTabs() {
   groups.forEach((g, i) => {
     html += `<div class="tab-item ${activeGroup === i ? 'active' : ''}" onclick="switchTab(${i})">${g.name}</div>`;
   });
+  html += `<div class="tab-item ${activeGroup === 'scan' ? 'active' : ''}" onclick="switchTab('scan')">🔍 今日信号</div>`;
   bar.innerHTML = html;
 }
 
@@ -682,7 +693,25 @@ function switchTab(idx) {
   loadStocks(); // 切换页签时刷新股票管理面板
 }
 
+// --- Scan ---
+let scanData = null;
+
+async function loadScan() {
+  try {
+    const res = await fetch('/api/scan');
+    const data = await res.json();
+    scanData = data.scan;
+  } catch {}
+}
+
+async function startScan() {
+  const res = await fetch('/api/scan', { method: 'POST' });
+  const data = await res.json();
+  document.getElementById('status').textContent = data.message || 'Scan started';
+}
+
 loadGroups();
+loadScan();
 
 // 页面打开自动加载数据
 loadData(false);

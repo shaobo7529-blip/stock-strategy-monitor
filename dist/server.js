@@ -10,6 +10,7 @@ import { parse } from './ConfigParser.js';
 import { fetchStockHistory, fetchIndexHistory, validateSymbol, calculateDailyChanges, } from './DataFetcher.js';
 import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, ExtremePanicStrategy, HammerReversalStrategy, } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
+import { LARGE_CAP_SYMBOLS } from './largecap.js';
 import { generateCSV, calculateStats } from './ReportGenerator.js';
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const CONFIG_PATH = process.env.CONFIG_PATH || 'config.json';
@@ -283,10 +284,109 @@ function getIndexHTML() {
 // --- 缓存 ---
 let cachedResult = null;
 let isLoading = false;
+// --- 扫描状态 ---
+let scanResult = null;
+let isScanning = false;
 // --- HTTP Server ---
 function sendJSON(res, status, data) {
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify(data));
+}
+// --- Daily Large-Cap Scan ---
+async function runDailyScan() {
+    if (isScanning) {
+        console.log('Scan already running, skip');
+        return;
+    }
+    isScanning = true;
+    const scanDate = new Date().toISOString().split('T')[0];
+    console.log(`[${new Date().toISOString()}] Starting daily large-cap scan (${LARGE_CAP_SYMBOLS.length} stocks)...`);
+    const signals = [];
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 1); // 1 year of data for MA calculations
+    const endDate = new Date();
+    // Fetch SPY for market regime
+    const spyResult = await fetchStockHistory('SPY', startDate, endDate);
+    let spyBull = false;
+    if (spyResult.ok && spyResult.value.length >= 200) {
+        const last200 = spyResult.value.slice(-200);
+        const ma200 = last200.reduce((s, p) => s + p.close, 0) / 200;
+        spyBull = spyResult.value[spyResult.value.length - 1].close > ma200;
+    }
+    // Fetch benchmark
+    const benchResult = await fetchIndexHistory('^IXIC', startDate, endDate);
+    let benchmarkChanges = [];
+    if (benchResult.ok) {
+        benchmarkChanges = calculateDailyChanges(benchResult.value, '^IXIC');
+    }
+    const engine = new StrategyEngine();
+    engine.registerStrategy(new SingleDayDropStrategy());
+    engine.registerStrategy(new UnderperformBenchmarkStrategy());
+    engine.registerStrategy(new RSI2OversoldStrategy());
+    engine.registerStrategy(new ConsecutiveDownDaysStrategy());
+    engine.registerStrategy(new MAPullbackStrategy());
+    engine.registerStrategy(new CumulativeRSI2Strategy());
+    engine.registerStrategy(new VIXSpikeStrategy());
+    engine.registerStrategy(new ExtremePanicStrategy());
+    engine.registerStrategy(new HammerReversalStrategy());
+    // Read config for enabled strategies
+    let enabledStrategies = [];
+    try {
+        const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
+        const config = JSON.parse(configJson);
+        enabledStrategies = config.strategies || [];
+    }
+    catch {
+        enabledStrategies = [];
+    }
+    for (let i = 0; i < LARGE_CAP_SYMBOLS.length; i++) {
+        const symbol = LARGE_CAP_SYMBOLS[i];
+        try {
+            const result = await fetchStockHistory(symbol, startDate, endDate);
+            if (!result.ok)
+                continue;
+            const changes = calculateDailyChanges(result.value, symbol);
+            if (changes.length < 5)
+                continue;
+            const events = engine.evaluate(changes, benchmarkChanges, enabledStrategies, result.value);
+            // Only keep events from the last trading day
+            const lastDate = changes[changes.length - 1].date;
+            const todayEvents = events.filter((e) => e.triggerDate === lastDate);
+            for (const event of todayEvents) {
+                // Apply SPY bull filter (skip non-vix strategies in bear market)
+                if (!spyBull && event.strategyType !== 'vix-spike')
+                    continue;
+                // Apply IBS filter
+                const priceIdx = result.value.findIndex((p) => p.date === event.triggerDate);
+                if (priceIdx >= 0 && event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
+                    const p = result.value[priceIdx];
+                    const range = p.high - p.low;
+                    if (range > 0 && (p.close - p.low) / range > 0.5)
+                        continue;
+                }
+                signals.push({
+                    symbol,
+                    triggerDate: event.triggerDate,
+                    strategyType: event.strategyType,
+                    triggerDayChange: event.triggerDayChange,
+                    timeframe: '1d',
+                });
+            }
+        }
+        catch (err) {
+            console.log(`Scan: ${symbol} failed`);
+        }
+        // Rate limit: 500ms between requests
+        await new Promise(r => setTimeout(r, 500));
+        if ((i + 1) % 10 === 0) {
+            console.log(`Scan progress: ${i + 1}/${LARGE_CAP_SYMBOLS.length}`);
+        }
+    }
+    scanResult = { date: scanDate, signals, scanTime: new Date().toISOString() };
+    // Save to disk
+    fs.writeFileSync(path.resolve('scan-result.json'), JSON.stringify(scanResult, null, 2), 'utf-8');
+    isScanning = false;
+    console.log(`[${new Date().toISOString()}] Scan complete: ${signals.length} signals found`);
 }
 const server = http.createServer(async (req, res) => {
     const parsedUrl = url.parse(req.url || '/', true);
@@ -541,6 +641,33 @@ const server = http.createServer(async (req, res) => {
         });
         return;
     }
+    // API: Get scan results
+    if (pathname === '/api/scan' && req.method === 'GET') {
+        try {
+            if (!scanResult) {
+                try {
+                    const diskScan = JSON.parse(fs.readFileSync(path.resolve('scan-result.json'), 'utf-8'));
+                    scanResult = diskScan;
+                }
+                catch { /* no scan yet */ }
+            }
+            sendJSON(res, 200, { scan: scanResult, scanning: isScanning });
+        }
+        catch {
+            sendJSON(res, 200, { scan: null, scanning: isScanning });
+        }
+        return;
+    }
+    // API: Trigger manual scan
+    if (pathname === '/api/scan' && req.method === 'POST') {
+        if (isScanning) {
+            sendJSON(res, 200, { ok: false, message: 'Scan already running' });
+            return;
+        }
+        runDailyScan().catch(err => console.error('Scan error:', err.message));
+        sendJSON(res, 200, { ok: true, message: 'Scan started' });
+        return;
+    }
     // 404
     sendJSON(res, 404, { error: 'Not found' });
 });
@@ -558,6 +685,13 @@ server.listen(PORT, () => {
         }
     }
     catch { /* 没有缓存文件，正常 */ }
+    // Load scan result from disk
+    try {
+        const diskScan = JSON.parse(fs.readFileSync(path.resolve('scan-result.json'), 'utf-8'));
+        scanResult = diskScan;
+        console.log(`Loaded scan result: ${diskScan.signals?.length || 0} signals from ${diskScan.date}`);
+    }
+    catch { /* no scan yet */ }
     // 后台异步刷新
     console.log('后台刷新数据...');
     isLoading = true;
@@ -581,5 +715,16 @@ server.listen(PORT, () => {
         })
             .catch(err => console.error(`[${new Date().toISOString()}] 刷新失败:`, err.message));
     }, 60 * 60 * 1000);
+    // Daily scan at UTC 21:30 (after US market close, ~5:30 AM Beijing time)
+    setInterval(() => {
+        const now = new Date();
+        if (now.getUTCHours() === 21 && now.getUTCMinutes() >= 25 && now.getUTCMinutes() <= 35) {
+            // Only scan on weekdays
+            const day = now.getUTCDay();
+            if (day >= 1 && day <= 5) {
+                runDailyScan().catch(err => console.error('Scheduled scan error:', err.message));
+            }
+        }
+    }, 10 * 60 * 1000); // Check every 10 minutes
 });
 //# sourceMappingURL=server.js.map
