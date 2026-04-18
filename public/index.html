@@ -535,23 +535,63 @@ loadStocks();
 // --- 股票搜索自动补全 ---
 let searchTimer = null;
 
+// 中文搜索映射（拼音+中文名→代码）
+const CN_SEARCH = {
+  '苹果':'AAPL','apple':'AAPL','微软':'MSFT','谷歌':'GOOGL','google':'GOOGL','亚马逊':'AMZN','amazon':'AMZN',
+  '英伟达':'NVDA','nvidia':'NVDA','特斯拉':'TSLA','tesla':'TSLA','奈飞':'NFLX','netflix':'NFLX',
+  '超微':'AMD','英特尔':'INTC','intel':'INTC','博通':'AVGO','甲骨文':'ORCL','oracle':'ORCL',
+  '思科':'CSCO','cisco':'CSCO','高通':'QCOM','德州仪器':'TXN','应用材料':'AMAT','美光':'MU',
+  '拉姆研究':'LRCX','摩根大通':'JPM','万事达':'MA','联合健康':'UNH','强生':'JNJ','宝洁':'PG',
+  '可口可乐':'KO','比特币':'BTC-USD','bitcoin':'BTC-USD','以太坊':'ETH-USD','ethereum':'ETH-USD',
+  '茅台':'600519.SS','贵州茅台':'600519.SS','maotai':'600519.SS','moutai':'600519.SS',
+  '平安':'601318.SS','中国平安':'601318.SS','五粮液':'000858.SZ','wuliangye':'000858.SZ',
+  '指南针':'300803.SZ',
+  '腾讯':'0700.HK','tencent':'0700.HK','阿里':'9988.HK','阿里巴巴':'9988.HK','alibaba':'9988.HK',
+  '美团':'3690.HK','meituan':'3690.HK','小米':'1810.HK','xiaomi':'1810.HK',
+  '比亚迪':'1211.HK','byd':'1211.HK',
+  '招商银行':'600036.SS','恒瑞医药':'600276.SS','兴业银行':'601166.SS',
+  '中信证券':'600030.SS','长江电力':'600900.SS','中国中免':'601888.SS',
+  '山西汾酒':'600809.SS','药明康德':'603259.SS','隆基绿能':'601012.SS',
+  '海螺水泥':'600585.SS','保利发展':'600048.SS','中国建筑':'601668.SS',
+  '海尔智家':'600690.SS','美的集团':'000333.SZ','格力电器':'000651.SZ',
+  '牧原股份':'002714.SZ','泸州老窖':'000568.SZ',
+};
+
 function searchStock(query) {
   clearTimeout(searchTimer);
   const dropdown = document.getElementById('search-dropdown');
   if (!query || query.length < 1) { dropdown.classList.remove('show'); return; }
+  
+  // 先在本地中文映射里搜
+  const q = query.toLowerCase();
+  const localResults = Object.entries(CN_SEARCH)
+    .filter(([k]) => k.toLowerCase().includes(q))
+    .slice(0, 8)
+    .map(([name, sym]) => ({ symbol: sym, name: name, exchange: '本地' }));
+  
+  if (localResults.length > 0) {
+    dropdown.innerHTML = localResults.map(r =>
+      `<div class="search-item" onclick="selectStock('${r.symbol}')"><span><span class="sym">${r.symbol}</span> ${stockName(r.symbol)}</span><span class="name">${r.name}</span></div>`
+    ).join('');
+    dropdown.classList.add('show');
+  }
+  
+  // 同时调 Yahoo API 补充结果
   searchTimer = setTimeout(async () => {
     try {
       const res = await fetch('/api/search?q=' + encodeURIComponent(query));
       const data = await res.json();
-      if (data.results && data.results.length > 0) {
-        dropdown.innerHTML = data.results.map(r =>
-          `<div class="search-item" onclick="selectStock('${r.symbol}')"><span><span class="sym">${r.symbol}</span> ${r.name}</span><span class="name">${r.exchange}</span></div>`
+      const apiResults = (data.results || []).filter(r => !localResults.some(l => l.symbol === r.symbol));
+      const allResults = [...localResults, ...apiResults].slice(0, 10);
+      if (allResults.length > 0) {
+        dropdown.innerHTML = allResults.map(r =>
+          `<div class="search-item" onclick="selectStock('${r.symbol}')"><span><span class="sym">${r.symbol}</span> ${stockName(r.symbol) !== r.symbol ? stockName(r.symbol) : r.name}</span><span class="name">${r.exchange}</span></div>`
         ).join('');
         dropdown.classList.add('show');
-      } else {
+      } else if (localResults.length === 0) {
         dropdown.classList.remove('show');
       }
-    } catch(e) { dropdown.classList.remove('show'); }
+    } catch(e) { /* keep local results if API fails */ }
   }, 300);
 }
 
