@@ -5,7 +5,15 @@
     "CSCO", "QCOM", "TXN", "AMAT", "MU", "LRCX",
     "JPM", "V", "MA", "UNH", "JNJ", "PG", "KO",
     "SPY", "QQQ", "DIA",
-    "BTC-USD", "ETH-USD"
+    "BTC-USD", "ETH-USD",
+    "600519.SS", "601318.SS", "000858.SZ",
+    "0700.HK", "9988.HK", "3690.HK", "1810.HK", "1211.HK"
+  ],
+  "groups": [
+    { "name": "权重股", "symbols": ["AAPL","MSFT","GOOGL","AMZN","NVDA","META","TSLA","NFLX","AMD","INTC","AVGO","CRM","ADBE","ORCL","CSCO","QCOM","TXN","AMAT","MU","LRCX","JPM","V","MA","UNH","JNJ","PG","KO","SPY","QQQ","DIA","BTC-USD","ETH-USD"] },
+    { "name": "A股自选", "symbols": ["600519.SS","601318.SS","000858.SZ","300803.SZ"] },
+    { "name": "港股自选", "symbols": ["0700.HK","9988.HK","3690.HK","1810.HK","1211.HK"] },
+    { "name": "持有股票", "symbols": [] }
   ],
   "strategies": [
     {

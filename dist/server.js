@@ -412,6 +412,41 @@ const server = http.createServer(async (req, res) => {
         });
         return;
     }
+    // API: 获取股票分组
+    if (pathname === '/api/groups' && req.method === 'GET') {
+        try {
+            const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
+            const config = JSON.parse(configJson);
+            sendJSON(res, 200, { groups: config.groups || [] });
+        }
+        catch (err) {
+            sendJSON(res, 200, { groups: [] });
+        }
+        return;
+    }
+    // API: 更新股票分组
+    if (pathname === '/api/groups' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const parsed = JSON.parse(body);
+                if (parsed.password !== 'shaobo2026') {
+                    sendJSON(res, 403, { error: '密码错误' });
+                    return;
+                }
+                const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
+                const config = JSON.parse(configJson);
+                config.groups = parsed.groups;
+                fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
+                sendJSON(res, 200, { ok: true });
+            }
+            catch (err) {
+                sendJSON(res, 500, { error: err.message });
+            }
+        });
+        return;
+    }
     // 404
     sendJSON(res, 404, { error: 'Not found' });
 });

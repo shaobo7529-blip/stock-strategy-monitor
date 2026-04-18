@@ -31,6 +31,10 @@
   .stat-divider { border-top: 1px solid var(--border); margin: 8px 0; }
   .positive { color: var(--green); }
   .negative { color: var(--red); }
+  .tab-bar { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 2px solid var(--border); }
+  .tab-item { padding: 10px 20px; cursor: pointer; font-size: 0.85rem; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+  .tab-item:hover { color: var(--text); }
+  .tab-item.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -46,6 +50,7 @@
     <button class="btn btn-secondary" onclick="document.getElementById('stock-panel').classList.toggle('hidden')">⚙️ 管理股票</button>
     <div class="status-bar" id="status">点击「运行监控」开始</div>
   </div>
+  <div class="tab-bar" id="tab-bar"></div>
   <div id="warnings"></div>
   <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:0.75rem;color:var(--muted);line-height:1.6">
     📋 <strong style="color:var(--accent)">过滤铁律</strong>：① 只做龙头（标普500/纳指100成分股）② 顺大盘（SPY>200日均线）③ 量能确认（成交量≥1.2x均量）④ IBS<0.5（收盘在区间下半部）⑤ 止损-5% ⑥ 止盈+10%
@@ -237,6 +242,8 @@ let sortCol = 'triggerDate';
 let sortDir = -1;
 let currentPage = 1;
 const PAGE_SIZE = 100;
+let groups = [];
+let activeGroup = null; // null = show all
 
 const SL = {
   'single-day-drop': '单日跌≥3%', 'underperform-benchmark': '跑输基准≥1%',
@@ -286,7 +293,12 @@ function getFiltered() {
   const fM5 = document.getElementById('f-min-5d').value;
   const fStr = document.getElementById('f-strength').value;
   const fTf = document.getElementById('f-timeframe').value;
-  return allRecords.filter(r => {
+  let baseRecords = allRecords;
+  if (activeGroup !== null && groups[activeGroup]) {
+    const groupSymbols = new Set(groups[activeGroup].symbols);
+    baseRecords = allRecords.filter(r => groupSymbols.has(r.symbol));
+  }
+  return baseRecords.filter(r => {
     if (fS && r.symbol !== fS) return false;
     if (fSt && r.strategyType !== fSt) return false;
     if (fSta && r.status !== fSta) return false;
@@ -497,6 +509,34 @@ async function saveStocks() {
 }
 
 loadStocks();
+
+// --- 分组标签 ---
+async function loadGroups() {
+  try {
+    const res = await fetch('/api/groups');
+    const data = await res.json();
+    groups = data.groups || [];
+    renderTabs();
+  } catch(e) { console.error('Failed to load groups', e); }
+}
+
+function renderTabs() {
+  const bar = document.getElementById('tab-bar');
+  let html = `<div class="tab-item ${activeGroup === null ? 'active' : ''}" onclick="switchTab(null)">全部</div>`;
+  groups.forEach((g, i) => {
+    html += `<div class="tab-item ${activeGroup === i ? 'active' : ''}" onclick="switchTab(${i})">${g.name}</div>`;
+  });
+  bar.innerHTML = html;
+}
+
+function switchTab(idx) {
+  activeGroup = idx;
+  currentPage = 1;
+  renderTabs();
+  renderTable();
+}
+
+loadGroups();
 
 // 页面打开自动加载数据
 loadData(false);
