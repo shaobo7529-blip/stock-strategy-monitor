@@ -375,7 +375,7 @@ const server = http.createServer(async (req, res) => {
         try {
             const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
             const config = JSON.parse(configJson);
-            sendJSON(res, 200, { stocks: config.stockList || [] });
+            sendJSON(res, 200, { stocks: config.stockList || [], stockNames: config.stockNames || {} });
         }
         catch (err) {
             sendJSON(res, 500, { error: err.message });
@@ -409,6 +409,31 @@ const server = http.createServer(async (req, res) => {
                 fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
                 cachedResult = null;
                 sendJSON(res, 200, { ok: true, stocks: config.stockList });
+            }
+            catch (err) {
+                sendJSON(res, 500, { error: err.message });
+            }
+        });
+        return;
+    }
+    // API: 保存股票中文名
+    if (pathname === '/api/stockname' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const { symbol, name } = JSON.parse(body);
+                if (!symbol || !name) {
+                    sendJSON(res, 400, { error: 'need symbol and name' });
+                    return;
+                }
+                const configJson = fs.readFileSync(path.resolve(CONFIG_PATH), 'utf-8');
+                const config = JSON.parse(configJson);
+                if (!config.stockNames)
+                    config.stockNames = {};
+                config.stockNames[symbol] = name;
+                fs.writeFileSync(path.resolve(CONFIG_PATH), JSON.stringify(config, null, 2), 'utf-8');
+                sendJSON(res, 200, { ok: true });
             }
             catch (err) {
                 sendJSON(res, 500, { error: err.message });

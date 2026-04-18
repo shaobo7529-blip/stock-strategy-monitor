@@ -273,7 +273,9 @@ const STOCK_NAMES = {
   'JNJ':'强生','PG':'宝洁','KO':'可口可乐','SPY':'标普500ETF','QQQ':'纳指100ETF','DIA':'道琼斯ETF',
   'BTC-USD':'比特币','ETH-USD':'以太坊',
   '600519.SS':'贵州茅台','601318.SS':'中国平安','000858.SZ':'五粮液','300803.SZ':'指南针',
+  '300339.SZ':'润和软件','300584.SZ':'海辰药业','300475.SZ':'聚隆科技',
   '0700.HK':'腾讯控股','9988.HK':'阿里巴巴','3690.HK':'美团','1810.HK':'小米集团','1211.HK':'比亚迪',
+  '2097.HK':'蜜雪集团',
 };
 function stockName(sym) { return STOCK_NAMES[sym] || sym; }
 function timeframeLabel(t) { return t === '1wk' ? '周线' : '日线'; }
@@ -482,13 +484,19 @@ let currentStocks = [];
 
 async function loadStocks() {
   try {
+    // 先从服务器加载名称映射
+    const stocksRes = await fetch('/api/stocks');
+    const stocksData = await stocksRes.json();
+    // 合并服务器端名称到本地映射
+    if (stocksData.stockNames) {
+      Object.assign(STOCK_NAMES, stocksData.stockNames);
+    }
+    
     if (activeGroup !== null && groups[activeGroup]) {
       currentStocks = [...groups[activeGroup].symbols];
       document.getElementById('panel-title').textContent = `📋 ${groups[activeGroup].name} - 股票管理`;
     } else {
-      const res = await fetch('/api/stocks');
-      const data = await res.json();
-      currentStocks = data.stocks || [];
+      currentStocks = stocksData.stocks || [];
       document.getElementById('panel-title').textContent = '📋 全部股票管理';
     }
     renderStockTags();
@@ -627,6 +635,12 @@ function selectStock(symbol) {
 function selectStockFromSearch(symbol, name) {
   if (name && !STOCK_NAMES[symbol]) {
     STOCK_NAMES[symbol] = name;
+    // 保存名称到服务器
+    fetch('/api/stockname', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ symbol, name })
+    }).catch(() => {});
   }
   document.getElementById('new-stock').value = symbol;
   hideSearch();
