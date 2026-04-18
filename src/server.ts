@@ -450,6 +450,37 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: 搜索股票
+  if (pathname === '/api/search' && req.method === 'GET') {
+    const query = (parsedUrl.query.q as string || '').trim();
+    if (!query || query.length < 1) { sendJSON(res, 200, { results: [] }); return; }
+    try {
+      const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=8&newsCount=0&listsCount=0&enableFuzzyQuery=true`;
+      const fetchMod = await import('node-fetch');
+      const fetch = fetchMod.default;
+
+      const PROXY_URL = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+      let fetchOpts: any = {};
+      if (PROXY_URL) {
+        const { HttpsProxyAgent } = await import('https-proxy-agent');
+        fetchOpts = { agent: new HttpsProxyAgent(PROXY_URL) };
+      }
+
+      const searchRes = await fetch(searchUrl, fetchOpts);
+      const searchData: any = await searchRes.json();
+      const quotes = (searchData?.quotes || []).map((q: any) => ({
+        symbol: q.symbol,
+        name: q.shortname || q.longname || '',
+        type: q.quoteType || '',
+        exchange: q.exchange || '',
+      }));
+      sendJSON(res, 200, { results: quotes });
+    } catch (err: any) {
+      sendJSON(res, 200, { results: [] });
+    }
+    return;
+  }
+
   // API: 获取股票分组
   if (pathname === '/api/groups' && req.method === 'GET') {
     try {

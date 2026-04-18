@@ -126,7 +126,10 @@
     <div class="panel-title">📋 股票列表管理</div>
     <div class="stock-tags" id="stock-tags"></div>
     <div class="stock-input-row">
-      <input type="text" id="new-stock" placeholder="输入股票代码，如 AAPL 或 600519.SS" onkeydown="if(event.key==='Enter')addStock()">
+      <div class="search-wrap">
+        <input type="text" id="new-stock" placeholder="搜索股票，如 茅台、apple、AAPL" autocomplete="off" oninput="searchStock(this.value)" onkeydown="if(event.key==='Enter'){addStock();hideSearch();}">
+        <div class="search-dropdown" id="search-dropdown"></div>
+      </div>
       <button class="btn btn-primary" onclick="addStock()" style="padding:6px 14px">添加</button>
       <button class="btn btn-secondary" onclick="saveStocks()" style="padding:6px 14px">💾 保存</button>
     </div>
@@ -233,6 +236,13 @@
   .stock-tag .remove:hover { opacity: 1; color: var(--red); }
   .stock-input-row { display: flex; gap: 8px; align-items: center; }
   .stock-input-row input { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 0.85rem; flex: 1; max-width: 300px; }
+  .search-wrap { position: relative; flex: 1; max-width: 300px; }
+  .search-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 0 0 8px 8px; max-height: 250px; overflow-y: auto; z-index: 100; display: none; }
+  .search-dropdown.show { display: block; }
+  .search-item { padding: 8px 12px; cursor: pointer; font-size: 0.8rem; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .search-item:hover { background: rgba(59,130,246,0.1); }
+  .search-item .sym { font-weight: 700; color: var(--accent); }
+  .search-item .name { color: var(--muted); font-size: 0.75rem; }
   .panel-hint { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
   @media (max-width: 768px) { .container { padding: 12px; } .stats-grid { grid-template-columns: 1fr; } }
 </style>
@@ -509,6 +519,43 @@ async function saveStocks() {
 }
 
 loadStocks();
+
+// --- 股票搜索自动补全 ---
+let searchTimer = null;
+
+function searchStock(query) {
+  clearTimeout(searchTimer);
+  const dropdown = document.getElementById('search-dropdown');
+  if (!query || query.length < 1) { dropdown.classList.remove('show'); return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/search?q=' + encodeURIComponent(query));
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        dropdown.innerHTML = data.results.map(r =>
+          `<div class="search-item" onclick="selectStock('${r.symbol}')"><span><span class="sym">${r.symbol}</span> ${r.name}</span><span class="name">${r.exchange}</span></div>`
+        ).join('');
+        dropdown.classList.add('show');
+      } else {
+        dropdown.classList.remove('show');
+      }
+    } catch(e) { dropdown.classList.remove('show'); }
+  }, 300);
+}
+
+function selectStock(symbol) {
+  document.getElementById('new-stock').value = symbol;
+  hideSearch();
+  addStock();
+}
+
+function hideSearch() {
+  document.getElementById('search-dropdown').classList.remove('show');
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-wrap')) hideSearch();
+});
 
 // --- 分组标签 ---
 async function loadGroups() {
