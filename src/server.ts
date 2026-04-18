@@ -404,12 +404,30 @@ async function runDailyScan() {
           if (range > 0 && (p.close - p.low) / range > 0.5) continue;
         }
         
+        // Calculate signal strength
+        let scanStrength = 0;
+        if (spyBull) scanStrength++;
+        if (priceIdx >= 0) {
+          const p = result.value[priceIdx];
+          const range = p.high - p.low;
+          if (range > 0 && (p.close - p.low) / range < 0.3) scanStrength++;
+          // Volume check
+          if (priceIdx >= 5) {
+            let volSum = 0;
+            for (let vi = priceIdx - 5; vi < priceIdx; vi++) volSum += result.value[vi].volume;
+            const avgVol = volSum / 5;
+            if (avgVol > 0 && p.volume >= avgVol * 1.5) scanStrength++;
+          }
+        }
+        if (scanStrength === 0) scanStrength = 1;
+        
         signals.push({
           symbol,
           triggerDate: event.triggerDate,
           strategyType: event.strategyType,
           triggerDayChange: event.triggerDayChange,
           timeframe: '1d',
+          signalStrength: scanStrength,
         });
       }
     } catch (err) {
