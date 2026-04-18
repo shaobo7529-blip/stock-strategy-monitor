@@ -449,7 +449,9 @@ const server = http.createServer(async (req, res) => {
                     else if (jys === '116' || item.SecurityTypeName?.includes('港'))
                         suffix = '.HK';
                     if (suffix) {
-                        const code = suffix === '.HK' ? item.Code.padStart(4, '0') : item.Code;
+                        // 港股：Yahoo Finance 需要 4 位数字格式（如 0700.HK）
+                        const rawCode = item.Code.replace(/^0+/, '') || '0'; // 去掉前导零
+                        const code = suffix === '.HK' ? rawCode.padStart(4, '0') : item.Code;
                         results.push({ symbol: code + suffix, name: item.Name, type: item.Classify, exchange: item.SecurityTypeName || '' });
                     }
                 }
