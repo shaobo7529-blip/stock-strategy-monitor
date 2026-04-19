@@ -350,7 +350,7 @@ function getFiltered() {
     if (scanData && scanData.signals) {
       baseRecords = scanData.signals.map(s => ({
         ...s, nextDayChange: null, maxGainIn5Days: null, day5Change: null,
-        signalStrength: null, status: 'pending'
+        signalStrength: s.signalStrength || null, status: 'pending'
       }));
     } else {
       baseRecords = [];
