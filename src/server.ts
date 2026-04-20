@@ -712,6 +712,75 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: A股成交额Top10 + 10日历史
+  if (pathname === '/api/ashare-top' && req.method === 'GET') {
+    try {
+      const fetchMod = await import('node-fetch');
+      const fetch = fetchMod.default;
+      const PROXY_URL = process.env.HTTPS_PROXY || process.env.https_proxy || '';
+      let fetchOpts: any = {};
+      if (PROXY_URL) {
+        const { HttpsProxyAgent } = await import('https-proxy-agent');
+        fetchOpts = { agent: new HttpsProxyAgent(PROXY_URL) };
+      }
+
+      // 1. Get top 10 by turnover from eastmoney
+      const emUrl = 'https://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=10&po=1&np=1&fltt=2&invt=2&fid=f6&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23&fields=f2,f3,f6,f12,f14';
+      const emRes = await fetch(emUrl, fetchOpts);
+      const emData: any = await emRes.json();
+      const stocks = (emData?.data?.diff || []).map((item: any) => ({
+        code: item.f12,
+        name: item.f14,
+        price: item.f2,
+        changePercent: item.f3,
+        turnover: item.f6, // in yuan
+        yahooSymbol: String(item.f12).startsWith('6') ? `${item.f12}.SS` : `${item.f12}.SZ`,
+      }));
+
+      // 2. Fetch 10-day history for each stock
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 20); // fetch 20 days to ensure we get 10 trading days
+
+      const results: any[] = [];
+      for (const stock of stocks) {
+        try {
+          const histResult = await fetchStockHistory(stock.yahooSymbol, startDate, endDate);
+          if (histResult.ok) {
+            const last10 = histResult.value.slice(-10);
+            results.push({
+              ...stock,
+              history: last10.map((p: any) => ({
+                date: p.date,
+                close: p.close,
+                open: p.open,
+                high: p.high,
+                low: p.low,
+                volume: p.volume,
+                // Calculate turnover estimate: close * volume
+                turnoverEst: p.close * p.volume,
+                // Change percent from previous day
+                changePercent: 0, // will be calculated below
+              })),
+            });
+            // Calculate daily change%
+            const hist = results[results.length - 1].history;
+            for (let i = 1; i < hist.length; i++) {
+              hist[i].changePercent = ((hist[i].close - hist[i - 1].close) / hist[i - 1].close * 100);
+            }
+            if (hist.length > 0) hist[0].changePercent = stock.changePercent || 0;
+          }
+        } catch {}
+        await new Promise(r => setTimeout(r, 300));
+      }
+
+      sendJSON(res, 200, { stocks: results, fetchTime: new Date().toISOString() });
+    } catch (err: any) {
+      sendJSON(res, 500, { error: err.message });
+    }
+    return;
+  }
+
   // 404
   sendJSON(res, 404, { error: 'Not found' });
 });

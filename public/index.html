@@ -346,7 +346,30 @@ function getFiltered() {
   const fStr = document.getElementById('f-strength').value;
   const fTf = document.getElementById('f-timeframe').value;
   let baseRecords = allRecords;
-  if (activeGroup === 'scan') {
+  if (activeGroup === 'ashare-top') {
+    if (ashareTopData && ashareTopData.stocks) {
+      // Flatten: each stock's each day becomes a row
+      baseRecords = [];
+      for (const stock of ashareTopData.stocks) {
+        for (const day of (stock.history || [])) {
+          baseRecords.push({
+            symbol: stock.yahooSymbol,
+            triggerDate: day.date,
+            strategyType: stock.name, // use strategy column to show stock name
+            timeframe: '1d',
+            signalStrength: null,
+            triggerDayChange: day.changePercent,
+            nextDayChange: day.turnoverEst ? (day.turnoverEst / 100000000) : null, // show turnover in 亿
+            maxGainIn5Days: null,
+            day5Change: null,
+            status: 'completed',
+          });
+        }
+      }
+    } else {
+      baseRecords = [];
+    }
+  } else if (activeGroup === 'scan') {
     if (scanData && scanData.signals) {
       baseRecords = scanData.signals.map(s => ({
         ...s, nextDayChange: null, maxGainIn5Days: null, day5Change: null,
@@ -709,6 +732,7 @@ function renderTabs() {
     html += `<div class="tab-item ${activeGroup === i ? 'active' : ''}" onclick="switchTab(${i})">${g.name}</div>`;
   });
   html += `<div class="tab-item ${activeGroup === 'scan' ? 'active' : ''}" onclick="switchTab('scan')">🔍 今日信号</div>`;
+  html += `<div class="tab-item ${activeGroup === 'ashare-top' ? 'active' : ''}" onclick="switchTab('ashare-top')">📊 A股热门</div>`;
   bar.innerHTML = html;
 }
 
@@ -716,12 +740,29 @@ function switchTab(idx) {
   activeGroup = idx;
   currentPage = 1;
   renderTabs();
+  if (idx === 'ashare-top') {
+    loadAshareTop();
+  }
   renderTable();
   loadStocks(); // 切换页签时刷新股票管理面板
 }
 
 // --- Scan ---
 let scanData = null;
+let ashareTopData = null;
+
+async function loadAshareTop() {
+  document.getElementById('status').textContent = '正在加载A股热门数据...';
+  try {
+    const res = await fetch('/api/ashare-top');
+    const data = await res.json();
+    ashareTopData = data;
+    document.getElementById('status').textContent = `A股热门: ${data.stocks?.length || 0} 只股票`;
+    renderTable();
+  } catch(e) {
+    document.getElementById('status').textContent = '加载失败: ' + e.message;
+  }
+}
 
 async function loadScan() {
   try {
