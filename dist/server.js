@@ -12,6 +12,7 @@ import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, R
 import { TriggerTracker } from './TriggerTracker.js';
 import { LARGE_CAP_SYMBOLS } from './largecap.js';
 import { generateCSV, calculateStats } from './ReportGenerator.js';
+import { calculateMACD, calculateRSI, calculateVolumeRatio, calculateMAAlignment, calculateKDJ, calculateBollinger, calculateCompositeScore, } from './TechnicalIndicators.js';
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const CONFIG_PATH = process.env.CONFIG_PATH || 'config.json';
 const TRIGGERS_PATH = process.env.TRIGGERS_PATH || 'triggers.csv';
@@ -754,6 +755,63 @@ const server = http.createServer(async (req, res) => {
         }
         catch (err) {
             sendJSON(res, 500, { error: err.message });
+        }
+        return;
+    }
+    // API: 技术分析
+    if (pathname?.startsWith('/api/technical/')) {
+        const symbol = pathname.replace('/api/technical/', '').toUpperCase();
+        if (!symbol) {
+            sendJSON(res, 400, { error: '缺少股票代码' });
+            return;
+        }
+        try {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 200); // fetch extra days to ensure 120 trading days
+            const result = await fetchStockHistory(symbol, startDate, endDate);
+            if (!result.ok) {
+                sendJSON(res, 404, { error: `获取 ${symbol} 数据失败: ${result.error.message}` });
+                return;
+            }
+            const prices = result.value;
+            if (prices.length === 0) {
+                sendJSON(res, 404, { error: `未找到 ${symbol} 的价格数据` });
+                return;
+            }
+            // Take last 120 trading days
+            const recentPrices = prices.slice(-120);
+            // Calculate all indicators
+            const macd = calculateMACD(recentPrices);
+            const rsi = calculateRSI(recentPrices);
+            const volumeRatio = calculateVolumeRatio(recentPrices);
+            const maAlignment = calculateMAAlignment(recentPrices);
+            const kdj = calculateKDJ(recentPrices);
+            const bollinger = calculateBollinger(recentPrices);
+            const composite = calculateCompositeScore({ macd, rsi, volumeRatio, maAlignment, kdj, bollinger });
+            // Get latest price info
+            const lastPrice = recentPrices[recentPrices.length - 1];
+            const prevPrice = recentPrices.length >= 2 ? recentPrices[recentPrices.length - 2] : null;
+            const change = prevPrice ? Math.round((lastPrice.close - prevPrice.close) * 100) / 100 : 0;
+            const changePercent = prevPrice ? Math.round((lastPrice.close - prevPrice.close) / prevPrice.close * 100 * 100) / 100 : 0;
+            const response = {
+                symbol,
+                date: lastPrice.date,
+                price: lastPrice.close,
+                change,
+                changePercent,
+                macd,
+                rsi,
+                volumeRatio,
+                maAlignment,
+                kdj,
+                bollinger,
+                composite,
+            };
+            sendJSON(res, 200, response);
+        }
+        catch (err) {
+            sendJSON(res, 500, { error: '技术分析计算失败' });
         }
         return;
     }

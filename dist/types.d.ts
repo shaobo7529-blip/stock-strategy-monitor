@@ -110,4 +110,99 @@ export interface FetchError {
     message: string;
     symbol?: string;
 }
+/** MACD 信号类型 */
+export type MACDSignal = 'golden_cross' | 'death_cross' | 'histogram_expanding' | 'histogram_shrinking';
+/** RSI 信号类型 */
+export type RSISignal = 'overbought' | 'oversold' | 'neutral';
+/** 量比信号类型 */
+export type VolumeRatioSignal = 'high_volume' | 'low_volume' | 'normal_volume';
+/** 均线排列信号类型 */
+export type MAAlignmentSignal = 'bullish' | 'bearish' | 'tangled';
+/** KDJ 信号类型 */
+export type KDJSignal = 'golden_cross' | 'death_cross' | 'neutral';
+/** KDJ 区域类型 */
+export type KDJZone = 'overbought' | 'oversold' | null;
+/** 布林带信号类型 */
+export type BollingerSignal = 'above_upper' | 'below_lower' | 'within_band';
+/** 综合建议类型 */
+export type Recommendation = 'bullish' | 'bearish' | 'neutral';
+/** 置信度等级 */
+export type Confidence = 'strong' | 'medium' | 'weak';
+/** MACD 计算结果 */
+export interface MACDResult {
+    dif: number;
+    dea: number;
+    macd: number;
+    signal: MACDSignal;
+}
+/** RSI 计算结果 */
+export interface RSIResult {
+    value: number;
+    signal: RSISignal;
+}
+/** 量比计算结果 */
+export interface VolumeRatioResult {
+    value: number;
+    signal: VolumeRatioSignal;
+}
+/** 均线排列计算结果 */
+export interface MAAlignmentResult {
+    ma5: number;
+    ma20: number;
+    ma50: number;
+    signal: MAAlignmentSignal;
+    deviations: {
+        ma5: number;
+        ma20: number;
+        ma50: number;
+    };
+}
+/** KDJ 计算结果 */
+export interface KDJResult {
+    k: number;
+    d: number;
+    j: number;
+    signal: KDJSignal;
+    zone: KDJZone;
+}
+/** 布林带计算结果 */
+export interface BollingerResult {
+    upper: number;
+    middle: number;
+    lower: number;
+    bandwidth: number;
+    signal: BollingerSignal;
+    percentB: number;
+}
+/** 综合评分各指标贡献 */
+export interface ScoreBreakdown {
+    macd: number;
+    rsi: number;
+    volumeRatio: number;
+    maAlignment: number;
+    kdj: number;
+    bollinger: number;
+}
+/** 综合评分结果 */
+export interface CompositeScoreResult {
+    score: number;
+    recommendation: Recommendation;
+    confidence: Confidence;
+    breakdown: ScoreBreakdown;
+}
+/** 技术分析 API 响应 */
+export interface TechnicalAnalysisResponse {
+    symbol: string;
+    date: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    macd: MACDResult | null;
+    rsi: RSIResult | null;
+    volumeRatio: VolumeRatioResult | null;
+    maAlignment: MAAlignmentResult | null;
+    kdj: KDJResult | null;
+    bollinger: BollingerResult | null;
+    composite: CompositeScoreResult;
+}
 //# sourceMappingURL=types.d.ts.map

@@ -254,6 +254,103 @@
   .search-item .name { color: var(--muted); font-size: 0.75rem; }
   .panel-hint { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
   @media (max-width: 768px) { .container { padding: 12px; } .stats-grid { grid-template-columns: 1fr; } }
+
+  /* --- Technical Panel Modal --- */
+  .clickable-stock { cursor: pointer; }
+  .clickable-stock:hover { color: var(--accent); text-decoration: underline; }
+
+  .tp-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.65); z-index: 1000; justify-content: center; align-items: center;
+  }
+  .tp-overlay.active { display: flex; }
+
+  .tp-modal {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    width: 90%; max-width: 720px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5); animation: tpFadeIn 0.2s ease;
+  }
+  @keyframes tpFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .tp-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+  }
+  .tp-header-info h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+  .tp-header-info h2 .tp-symbol { color: var(--accent); margin-right: 8px; }
+  .tp-header-meta { font-size: 0.75rem; color: var(--muted); display: flex; gap: 12px; align-items: center; margin-top: 4px; }
+  .tp-price { font-size: 1.2rem; font-weight: 700; }
+  .tp-change { font-size: 0.85rem; font-weight: 600; margin-left: 8px; }
+  .tp-close-btn {
+    background: none; border: none; color: var(--muted); font-size: 1.5rem;
+    cursor: pointer; padding: 4px 8px; line-height: 1; border-radius: 6px;
+  }
+  .tp-close-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+  .tp-body { padding: 16px 24px 20px; }
+
+  .tp-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;
+  }
+  @media (max-width: 640px) { .tp-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 420px) { .tp-grid { grid-template-columns: 1fr; } }
+
+  .tp-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+    transition: border-color 0.2s;
+  }
+  .tp-card:hover { border-color: var(--accent); }
+  .tp-card-title { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+  .tp-card-values { font-size: 0.8rem; line-height: 1.7; }
+  .tp-card-values .tp-val-row { display: flex; justify-content: space-between; }
+  .tp-card-values .tp-val-label { color: var(--muted); }
+  .tp-card-values .tp-val-num { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .tp-signal {
+    display: inline-block; padding: 2px 8px; border-radius: 12px;
+    font-size: 0.65rem; font-weight: 700; white-space: nowrap;
+  }
+  .tp-signal-green { background: rgba(34,197,94,0.18); color: var(--green); }
+  .tp-signal-red { background: rgba(239,68,68,0.18); color: var(--red); }
+  .tp-signal-gray { background: rgba(100,116,139,0.18); color: var(--muted); }
+
+  .tp-insufficient { color: var(--muted); font-size: 0.8rem; text-align: center; padding: 12px 0; }
+
+  .tp-composite {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+  }
+  .tp-composite-header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tp-score {
+    font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .tp-recommendation { font-size: 1rem; font-weight: 700; }
+  .tp-confidence { font-size: 0.75rem; color: var(--muted); margin-left: 4px; }
+  .tp-breakdown { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; font-size: 0.75rem; }
+  @media (max-width: 480px) { .tp-breakdown { grid-template-columns: repeat(2, 1fr); } }
+  .tp-breakdown-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(30,41,59,0.3); }
+  .tp-breakdown-label { color: var(--muted); }
+  .tp-breakdown-val { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .tp-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; color: var(--muted);
+  }
+  .tp-spinner {
+    width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: tpSpin 0.8s linear infinite; margin-bottom: 14px;
+  }
+  @keyframes tpSpin { to { transform: rotate(360deg); } }
+
+  .tp-error {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 40px 20px; color: var(--red); text-align: center;
+  }
+  .tp-error-msg { margin-bottom: 14px; font-size: 0.85rem; }
+  .tp-retry-btn {
+    background: var(--accent); color: #fff; border: none; padding: 8px 20px;
+    border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+  }
+  .tp-retry-btn:hover { background: #2563eb; }
 </style>
 <script>
 let allRecords = [];
@@ -440,7 +537,7 @@ function renderTable() {
         tp = '⏳持有中'; tpCls = '';
       }
       return `<tr>
-      <td><strong>${stockName(r.symbol)}</strong></td>
+      <td data-symbol="${r.symbol}" class="clickable-stock"><strong>${stockName(r.symbol)}</strong></td>
       <td style="color:var(--muted)">${r.triggerDate}</td>
       <td style="font-size:0.7rem">${strategyLabel(r.strategyType)}</td>
       <td>${timeframeLabel(r.timeframe)}</td>
@@ -732,7 +829,6 @@ function renderTabs() {
     html += `<div class="tab-item ${activeGroup === i ? 'active' : ''}" onclick="switchTab(${i})">${g.name}</div>`;
   });
   html += `<div class="tab-item ${activeGroup === 'scan' ? 'active' : ''}" onclick="switchTab('scan')">🔍 今日信号</div>`;
-  html += `<div class="tab-item ${activeGroup === 'ashare-top' ? 'active' : ''}" onclick="switchTab('ashare-top')">📊 A股热门</div>`;
   bar.innerHTML = html;
 }
 
@@ -784,6 +880,325 @@ loadScan();
 // 页面打开自动加载数据
 loadData(false);
 // 如果返回 loading 状态，5 秒后自动重试
+</script>
+
+<!-- Technical Panel Modal (Task 7.1) -->
+<div class="tp-overlay" id="tp-overlay">
+  <div class="tp-modal" id="tp-modal">
+    <div class="tp-header">
+      <div class="tp-header-info">
+        <h2><span class="tp-symbol" id="tp-symbol"></span><span id="tp-name"></span></h2>
+        <div class="tp-header-meta">
+          <span id="tp-price-area"></span>
+          <span id="tp-date"></span>
+        </div>
+      </div>
+      <button class="tp-close-btn" id="tp-close-btn">&times;</button>
+    </div>
+    <div class="tp-body" id="tp-body">
+      <!-- Loading state -->
+      <div class="tp-loading" id="tp-loading">
+        <div class="tp-spinner"></div>
+        <div>正在分析...</div>
+      </div>
+      <!-- Error state -->
+      <div class="tp-error" id="tp-error" style="display:none">
+        <div class="tp-error-msg" id="tp-error-msg"></div>
+        <button class="tp-retry-btn" id="tp-retry-btn">重试</button>
+      </div>
+      <!-- Content -->
+      <div id="tp-content" style="display:none">
+        <div class="tp-grid" id="tp-grid"></div>
+        <div class="tp-composite" id="tp-composite"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- Technical Panel Logic (Task 7.2) ---
+(function() {
+  const overlay = document.getElementById('tp-overlay');
+  const modal = document.getElementById('tp-modal');
+  const closeBtn = document.getElementById('tp-close-btn');
+  const loadingEl = document.getElementById('tp-loading');
+  const errorEl = document.getElementById('tp-error');
+  const errorMsg = document.getElementById('tp-error-msg');
+  const retryBtn = document.getElementById('tp-retry-btn');
+  const contentEl = document.getElementById('tp-content');
+  const gridEl = document.getElementById('tp-grid');
+  const compositeEl = document.getElementById('tp-composite');
+  const symbolEl = document.getElementById('tp-symbol');
+  const nameEl = document.getElementById('tp-name');
+  const priceArea = document.getElementById('tp-price-area');
+  const dateEl = document.getElementById('tp-date');
+
+  let currentSymbol = null;
+
+  // Signal display mappings
+  const MACD_SIGNALS = {
+    golden_cross: { text: '金叉', cls: 'tp-signal-green' },
+    death_cross: { text: '死叉', cls: 'tp-signal-red' },
+    histogram_expanding: { text: '柱状图放大', cls: 'tp-signal-green' },
+    histogram_shrinking: { text: '柱状图缩小', cls: 'tp-signal-red' }
+  };
+  const RSI_SIGNALS = {
+    overbought: { text: '超买', cls: 'tp-signal-red' },
+    oversold: { text: '超卖', cls: 'tp-signal-green' },
+    neutral: { text: '中性', cls: 'tp-signal-gray' }
+  };
+  const VOLUME_SIGNALS = {
+    high_volume: { text: '放量', cls: 'tp-signal-green' },
+    low_volume: { text: '缩量', cls: 'tp-signal-red' },
+    normal_volume: { text: '平量', cls: 'tp-signal-gray' }
+  };
+  const MA_SIGNALS = {
+    bullish: { text: '多头排列', cls: 'tp-signal-green' },
+    bearish: { text: '空头排列', cls: 'tp-signal-red' },
+    tangled: { text: '交叉缠绕', cls: 'tp-signal-gray' }
+  };
+  const KDJ_SIGNALS = {
+    golden_cross: { text: '金叉', cls: 'tp-signal-green' },
+    death_cross: { text: '死叉', cls: 'tp-signal-red' },
+    neutral: { text: '中性', cls: 'tp-signal-gray' }
+  };
+  const KDJ_ZONES = {
+    overbought: '超买区',
+    oversold: '超卖区'
+  };
+  const BOLL_SIGNALS = {
+    above_upper: { text: '突破上轨', cls: 'tp-signal-red' },
+    below_lower: { text: '跌破下轨', cls: 'tp-signal-green' },
+    within_band: { text: '通道内运行', cls: 'tp-signal-gray' }
+  };
+  const REC_MAP = {
+    bullish: { text: '看多', cls: 'positive' },
+    bearish: { text: '看空', cls: 'negative' },
+    neutral: { text: '中性', cls: '' }
+  };
+  const CONF_MAP = { strong: '强', medium: '中', weak: '弱' };
+
+  function signalBadge(map, key) {
+    const s = map[key];
+    if (!s) return '';
+    return `<span class="tp-signal ${s.cls}">${s.text}</span>`;
+  }
+
+  function insufficientCard(title) {
+    return `<div class="tp-card">
+      <div class="tp-card-title">${title}</div>
+      <div class="tp-insufficient">数据不足</div>
+    </div>`;
+  }
+
+  function renderMACDCard(data) {
+    if (!data) return insufficientCard('MACD (12,26,9)');
+    return `<div class="tp-card">
+      <div class="tp-card-title">MACD (12,26,9) ${signalBadge(MACD_SIGNALS, data.signal)}</div>
+      <div class="tp-card-values">
+        <div class="tp-val-row"><span class="tp-val-label">DIF</span><span class="tp-val-num">${data.dif.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">DEA</span><span class="tp-val-num">${data.dea.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">MACD</span><span class="tp-val-num">${data.macd.toFixed(2)}</span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderRSICard(data) {
+    if (!data) return insufficientCard('RSI (14)');
+    return `<div class="tp-card">
+      <div class="tp-card-title">RSI (14) ${signalBadge(RSI_SIGNALS, data.signal)}</div>
+      <div class="tp-card-values">
+        <div class="tp-val-row"><span class="tp-val-label">RSI</span><span class="tp-val-num">${data.value.toFixed(2)}</span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderVolumeCard(data) {
+    if (!data) return insufficientCard('量比');
+    return `<div class="tp-card">
+      <div class="tp-card-title">量比 ${signalBadge(VOLUME_SIGNALS, data.signal)}</div>
+      <div class="tp-card-values">
+        <div class="tp-val-row"><span class="tp-val-label">量比</span><span class="tp-val-num">${data.value.toFixed(2)}</span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderMACard(data) {
+    if (!data) return insufficientCard('均线排列');
+    return `<div class="tp-card">
+      <div class="tp-card-title">均线排列 ${signalBadge(MA_SIGNALS, data.signal)}</div>
+      <div class="tp-card-values">
+        <div class="tp-val-row"><span class="tp-val-label">MA5</span><span class="tp-val-num">${data.ma5.toFixed(2)} <small style="color:var(--muted)">(${data.deviations.ma5 >= 0 ? '+' : ''}${data.deviations.ma5.toFixed(2)}%)</small></span></div>
+        <div class="tp-val-row"><span class="tp-val-label">MA20</span><span class="tp-val-num">${data.ma20.toFixed(2)} <small style="color:var(--muted)">(${data.deviations.ma20 >= 0 ? '+' : ''}${data.deviations.ma20.toFixed(2)}%)</small></span></div>
+        <div class="tp-val-row"><span class="tp-val-label">MA50</span><span class="tp-val-num">${data.ma50.toFixed(2)} <small style="color:var(--muted)">(${data.deviations.ma50 >= 0 ? '+' : ''}${data.deviations.ma50.toFixed(2)}%)</small></span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderKDJCard(data) {
+    if (!data) return insufficientCard('KDJ (9,3,3)');
+    let zoneText = '';
+    if (data.zone && KDJ_ZONES[data.zone]) {
+      zoneText = ` <small style="color:var(--muted)">(${KDJ_ZONES[data.zone]})</small>`;
+    }
+    return `<div class="tp-card">
+      <div class="tp-card-title">KDJ (9,3,3) ${signalBadge(KDJ_SIGNALS, data.signal)}${zoneText}</div>
+      <div class="tp-card-values">
+        <div class="tp-val-row"><span class="tp-val-label">K</span><span class="tp-val-num">${data.k.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">D</span><span class="tp-val-num">${data.d.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">J</span><span class="tp-val-num">${data.j.toFixed(2)}</span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderBollingerCard(data) {
+    if (!data) return insufficientCard('布林带 (20,2)');
+    return `<div class="tp-card">
+      <div class="tp-card-title">布林带 (20,2) ${signalBadge(BOLL_SIGNALS, data.signal)}</div>
+      <div class="tp-card-values">
+        <div class="tp-val-row"><span class="tp-val-label">上轨</span><span class="tp-val-num">${data.upper.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">中轨</span><span class="tp-val-num">${data.middle.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">下轨</span><span class="tp-val-num">${data.lower.toFixed(2)}</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">带宽</span><span class="tp-val-num">${data.bandwidth.toFixed(2)}%</span></div>
+        <div class="tp-val-row"><span class="tp-val-label">%B</span><span class="tp-val-num">${data.percentB.toFixed(2)}%</span></div>
+      </div>
+    </div>`;
+  }
+
+  function renderComposite(comp) {
+    if (!comp) return '';
+    const rec = REC_MAP[comp.recommendation] || REC_MAP.neutral;
+    const conf = CONF_MAP[comp.confidence] || '';
+    const scoreColor = comp.score > 30 ? 'var(--green)' : comp.score < -30 ? 'var(--red)' : 'var(--muted)';
+
+    const indicatorNames = {
+      macd: 'MACD', rsi: 'RSI', volumeRatio: '量比',
+      maAlignment: '均线', kdj: 'KDJ', bollinger: '布林带'
+    };
+
+    let breakdownHtml = '';
+    if (comp.breakdown) {
+      breakdownHtml = Object.entries(comp.breakdown).map(([key, val]) => {
+        const v = typeof val === 'number' ? val : 0;
+        const vCls = v > 0 ? 'positive' : v < 0 ? 'negative' : '';
+        return `<div class="tp-breakdown-item">
+          <span class="tp-breakdown-label">${indicatorNames[key] || key}</span>
+          <span class="tp-breakdown-val ${vCls}">${v > 0 ? '+' : ''}${v}</span>
+        </div>`;
+      }).join('');
+    }
+
+    return `<div class="tp-composite-header">
+      <span class="tp-score" style="color:${scoreColor}">${comp.score > 0 ? '+' : ''}${comp.score}</span>
+      <span>
+        <span class="tp-recommendation ${rec.cls}">${rec.text}</span>
+        <span class="tp-confidence">置信度: ${conf}</span>
+      </span>
+    </div>
+    <div class="tp-breakdown">${breakdownHtml}</div>`;
+  }
+
+  function showState(state) {
+    loadingEl.style.display = state === 'loading' ? 'flex' : 'none';
+    errorEl.style.display = state === 'error' ? 'flex' : 'none';
+    contentEl.style.display = state === 'content' ? 'block' : 'none';
+  }
+
+  function openModal(symbol) {
+    currentSymbol = symbol;
+    symbolEl.textContent = symbol;
+    nameEl.textContent = stockName(symbol);
+    priceArea.innerHTML = '';
+    dateEl.textContent = '';
+    showState('loading');
+    overlay.classList.add('active');
+    fetchTechnical(symbol);
+  }
+
+  function closeModal() {
+    overlay.classList.remove('active');
+    currentSymbol = null;
+  }
+
+  function fetchTechnical(symbol) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    fetch('/api/technical/' + encodeURIComponent(symbol), { signal: controller.signal })
+      .then(res => {
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          return res.json().then(data => { throw new Error(data.error || '请求失败'); });
+        }
+        return res.json();
+      })
+      .then(data => {
+        if (currentSymbol !== symbol) return; // stale response
+        renderData(data);
+        showState('content');
+      })
+      .catch(err => {
+        clearTimeout(timeoutId);
+        if (currentSymbol !== symbol) return;
+        let msg;
+        if (err.name === 'AbortError') {
+          msg = '请求超时，请重试';
+        } else if (err.message === 'Failed to fetch' || err.message.includes('NetworkError') || err.message.includes('network')) {
+          msg = '网络连接失败，请检查网络后重试';
+        } else {
+          msg = err.message || '请求失败';
+        }
+        errorMsg.textContent = msg;
+        showState('error');
+      });
+  }
+
+  function renderData(data) {
+    // Header price info
+    const changeSign = data.change >= 0 ? '+' : '';
+    const changeCls = data.change >= 0 ? 'positive' : 'negative';
+    priceArea.innerHTML = `<span class="tp-price">${data.price.toFixed(2)}</span>
+      <span class="tp-change ${changeCls}">${changeSign}${data.change.toFixed(2)} (${changeSign}${data.changePercent.toFixed(2)}%)</span>`;
+    dateEl.textContent = data.date;
+
+    // Indicator cards
+    gridEl.innerHTML =
+      renderMACDCard(data.macd) +
+      renderRSICard(data.rsi) +
+      renderVolumeCard(data.volumeRatio) +
+      renderMACard(data.maAlignment) +
+      renderKDJCard(data.kdj) +
+      renderBollingerCard(data.bollinger);
+
+    // Composite score
+    compositeEl.innerHTML = renderComposite(data.composite);
+  }
+
+  // Event: close modal
+  closeBtn.addEventListener('click', closeModal);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeModal();
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && overlay.classList.contains('active')) closeModal();
+  });
+
+  // Event: retry
+  retryBtn.addEventListener('click', function() {
+    if (currentSymbol) {
+      showState('loading');
+      fetchTechnical(currentSymbol);
+    }
+  });
+
+  // Event delegation: click on stock name in table
+  document.getElementById('tbody').addEventListener('click', function(e) {
+    const td = e.target.closest('.clickable-stock');
+    if (!td) return;
+    const symbol = td.getAttribute('data-symbol');
+    if (symbol) openModal(symbol);
+  });
+})();
 </script>
 </body>
 </html>
