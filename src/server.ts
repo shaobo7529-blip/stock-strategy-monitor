@@ -606,6 +606,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: 获取权重股列表（大盘股）
+  if (pathname === '/api/largecap' && req.method === 'GET') {
+    sendJSON(res, 200, { symbols: LARGE_CAP_SYMBOLS });
+    return;
+  }
+
   // API: 搜索股票
   if (pathname === '/api/search' && req.method === 'GET') {
     const query = (parsedUrl.query.q as string || '').trim();

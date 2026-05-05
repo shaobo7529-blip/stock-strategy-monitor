@@ -48,7 +48,7 @@
     <button class="btn btn-secondary" id="btn-csv" onclick="downloadCSV()">📥 下载 CSV</button>
     <button class="btn btn-secondary" onclick="document.getElementById('filters').classList.toggle('hidden')">🔍 筛选</button>
     <button class="btn btn-secondary" onclick="document.getElementById('stock-panel').classList.toggle('hidden')">⚙️ 管理股票</button>
-    <button class="btn btn-secondary" onclick="startScan()">🔍 扫描大盘股</button>
+    <button class="btn btn-secondary" onclick="startScanAndRefresh()">🔍 扫描大盘股</button>
     <div class="status-bar" id="status">点击「运行监控」开始</div>
   </div>
   <div class="tab-bar" id="tab-bar"></div>
@@ -476,8 +476,23 @@ function getFiltered() {
       baseRecords = [];
     }
   } else if (activeGroup !== null && groups[activeGroup]) {
-    const groupSymbols = new Set(groups[activeGroup].symbols);
-    baseRecords = allRecords.filter(r => groupSymbols.has(r.symbol));
+    // 权重股标签：使用 largecap.ts 中的 81 只权重股列表
+    if (groups[activeGroup].name === '权重股') {
+      if (scanData && scanData.signals && largeCapSymbols.length > 0) {
+        const groupSymbols = new Set(largeCapSymbols);
+        baseRecords = scanData.signals
+          .filter(s => groupSymbols.has(s.symbol))
+          .map(s => ({
+            ...s, nextDayChange: null, maxGainIn5Days: null, day5Change: null,
+            signalStrength: s.signalStrength || null, status: 'pending'
+          }));
+      } else {
+        baseRecords = [];
+      }
+    } else {
+      const groupSymbols = new Set(groups[activeGroup].symbols);
+      baseRecords = allRecords.filter(r => groupSymbols.has(r.symbol));
+    }
   }
   return baseRecords.filter(r => {
     if (fS && r.symbol !== fS) return false;
@@ -813,6 +828,9 @@ document.addEventListener('click', (e) => {
 });
 
 // --- 分组标签 ---
+let groups = [];
+let largeCapSymbols = []; // 权重股列表（从 largecap.ts 获取）
+
 async function loadGroups() {
   try {
     const res = await fetch('/api/groups');
@@ -820,6 +838,17 @@ async function loadGroups() {
     groups = data.groups || [];
     renderTabs();
   } catch(e) { console.error('Failed to load groups', e); }
+}
+
+async function loadLargeCapSymbols() {
+  try {
+    const res = await fetch('/api/largecap');
+    const data = await res.json();
+    largeCapSymbols = data.symbols || [];
+    console.log('Loaded large cap symbols:', largeCapSymbols.length);
+  } catch(e) {
+    console.error('Failed to load large cap symbols', e);
+  }
 }
 
 function renderTabs() {
@@ -832,12 +861,39 @@ function renderTabs() {
   bar.innerHTML = html;
 }
 
-function switchTab(idx) {
+async function switchTab(idx) {
   activeGroup = idx;
   currentPage = 1;
   renderTabs();
   if (idx === 'ashare-top') {
     loadAshareTop();
+  }
+  // 权重股标签：使用 largecap.ts 中的 81 只权重股列表
+  if (idx !== null && groups[idx] && groups[idx].name === '权重股') {
+    // 确保权重股列表已加载
+    if (largeCapSymbols.length === 0) {
+      await loadLargeCapSymbols();
+    }
+    // 确保扫描数据已加载
+    await ensureScanData();
+    if (!scanData || !scanData.signals || scanData.signals.length === 0) {
+      document.getElementById('status').textContent = '正在扫描权重股信号...';
+      await startScanAndRefresh();
+    } else {
+      const groupSymbols = new Set(largeCapSymbols);
+      const count = scanData.signals.filter(s => groupSymbols.has(s.symbol)).length;
+      document.getElementById('status').textContent = `权重股信号: ${count} 个`;
+    }
+  }
+  // 今日信号标签：自动触发扫描
+  if (idx === 'scan') {
+    await ensureScanData();
+    if (!scanData || !scanData.signals || scanData.signals.length === 0) {
+      document.getElementById('status').textContent = '正在扫描大盘股信号...';
+      await startScanAndRefresh();
+    } else {
+      document.getElementById('status').textContent = `今日信号: ${scanData.signals.length} 个`;
+    }
   }
   renderTable();
   loadStocks(); // 切换页签时刷新股票管理面板
@@ -865,7 +921,10 @@ async function loadScan() {
     const res = await fetch('/api/scan');
     const data = await res.json();
     scanData = data.scan;
-  } catch {}
+    console.log('Loaded scan data:', scanData?.signals?.length || 0, 'signals');
+  } catch(e) {
+    console.error('Failed to load scan data:', e);
+  }
 }
 
 async function startScan() {
@@ -874,7 +933,53 @@ async function startScan() {
   document.getElementById('status').textContent = data.message || 'Scan started';
 }
 
+// 确保扫描数据已加载
+async function ensureScanData() {
+  if (!scanData) {
+    await loadScan();
+  }
+  return scanData;
+}
+
+// 扫描并自动刷新结果
+async function startScanAndRefresh() {
+  return new Promise(async (resolve) => {
+    try {
+      const res = await fetch('/api/scan', { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        // 轮询等待扫描完成
+        let attempts = 0;
+        const maxAttempts = 60; // 最多等待 60 秒
+        const poll = async () => {
+          attempts++;
+          const scanRes = await fetch('/api/scan');
+          const scanJson = await scanRes.json();
+          if (scanJson.scanning && attempts < maxAttempts) {
+            document.getElementById('status').textContent = `扫描中... (${attempts}秒)`;
+            setTimeout(poll, 1000);
+          } else {
+            scanData = scanJson.scan;
+            const signalCount = scanData?.signals?.length || 0;
+            document.getElementById('status').textContent = `✅ 扫描完成：${signalCount} 个信号`;
+            renderTable();
+            resolve(scanData);
+          }
+        };
+        setTimeout(poll, 1000);
+      } else {
+        document.getElementById('status').textContent = data.message || '扫描失败';
+        resolve(null);
+      }
+    } catch(e) {
+      document.getElementById('status').textContent = '扫描失败: ' + e.message;
+      resolve(null);
+    }
+  });
+}
+
 loadGroups();
+loadLargeCapSymbols();
 loadScan();
 
 // 页面打开自动加载数据
