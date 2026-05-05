@@ -476,19 +476,10 @@ function getFiltered() {
       baseRecords = [];
     }
   } else if (activeGroup !== null && groups[activeGroup]) {
-    // 权重股标签：使用 largecap.ts 中的 81 只权重股列表
+    // 权重股标签：使用 largecap.ts 中的 81 只权重股列表，显示历史数据
     if (groups[activeGroup].name === '权重股') {
-      if (scanData && scanData.signals && largeCapSymbols.length > 0) {
-        const groupSymbols = new Set(largeCapSymbols);
-        baseRecords = scanData.signals
-          .filter(s => groupSymbols.has(s.symbol))
-          .map(s => ({
-            ...s, nextDayChange: null, maxGainIn5Days: null, day5Change: null,
-            signalStrength: s.signalStrength || null, status: 'pending'
-          }));
-      } else {
-        baseRecords = [];
-      }
+      const groupSymbols = new Set(largeCapSymbols.length > 0 ? largeCapSymbols : groups[activeGroup].symbols);
+      baseRecords = allRecords.filter(r => groupSymbols.has(r.symbol));
     } else {
       const groupSymbols = new Set(groups[activeGroup].symbols);
       baseRecords = allRecords.filter(r => groupSymbols.has(r.symbol));
