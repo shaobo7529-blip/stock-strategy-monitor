@@ -192,6 +192,14 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
       // 强度 2 = 牛市 + 强超卖 或 牛市 + 强放量 或 强超卖 + 强放量
       if (signalStrength < 2) continue;
 
+      // 提高胜率：只记录触发日跌幅在 3-5% 的信号
+      // 根据5年数据验证，跌幅3-5%的胜率最高（62.2%）
+      // ma-pullback 和 vix-spike 不受此过滤（策略特性不同）
+      if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
+        const drop = event.triggerDayChange;
+        if (drop >= -3 || drop < -5) continue; // 只保留跌幅在3-5%的信号
+      }
+
       tracker.recordTrigger(eventWithTf, signalStrength);
     }
 
@@ -287,6 +295,14 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
 
       // 提高胜率：只记录信号强度 >= 2 的信号
       if (signalStrength < 2) continue;
+
+      // 提高胜率：只记录触发日跌幅在 3-5% 的信号
+      // 根据5年数据验证，跌幅3-5%的胜率最高（62.2%）
+      // ma-pullback 和 vix-spike 不受此过滤（策略特性不同）
+      if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
+        const drop = event.triggerDayChange;
+        if (drop >= -3 || drop < -5) continue; // 只保留跌幅在3-5%的信号
+      }
 
       tracker.recordTrigger(eventWithTf, signalStrength);
     }
@@ -452,6 +468,12 @@ async function runDailyScan() {
         
         // 提高胜率：只记录信号强度 >= 2 的信号
         if (scanStrength < 2) continue;
+        
+        // 提高胜率：只记录触发日跌幅在 3-5% 的信号（5年数据验证：62.2%胜率）
+        if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
+          const drop = event.triggerDayChange;
+          if (drop >= -3 || drop < -5) continue;
+        }
         
         signals.push({
           symbol,
