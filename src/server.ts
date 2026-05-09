@@ -187,6 +187,11 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
       // 至少为 1
       if (signalStrength === 0) signalStrength = 1;
 
+      // 提高胜率：只记录信号强度 >= 2 的信号
+      // 强度 3 = 牛市 + 强超卖 + 强放量（最佳信号）
+      // 强度 2 = 牛市 + 强超卖 或 牛市 + 强放量 或 强超卖 + 强放量
+      if (signalStrength < 2) continue;
+
       tracker.recordTrigger(eventWithTf, signalStrength);
     }
 
@@ -203,17 +208,23 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
         let maxDrawdown = nextDayChange; // 5日内最大回撤
         const lookAhead = Math.min(5, stockChanges.length - triggerIdx - 1);
         let stoppedOut = false;
+        let takeProfitHit = false;
         for (let d = 1; d <= lookAhead; d++) {
           const futureDay = stockChanges[triggerIdx + d];
           const change = ((futureDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
           if (change > maxGain) maxGain = change;
           if (change < maxDrawdown) maxDrawdown = change;
           // 止损铁律：跌破 -5% 视为止损出局
-          if (change <= -5 && !stoppedOut) {
+          if (change <= -5 && !stoppedOut && !takeProfitHit) {
             stoppedOut = true;
             day5Change = change; // 止损价作为最终收益
           }
-          if (d === lookAhead && !stoppedOut) day5Change = change;
+          // 止盈规则：涨到 +3% 视为止盈出局
+          if (change >= 3 && !takeProfitHit && !stoppedOut) {
+            takeProfitHit = true;
+            day5Change = change; // 止盈价作为最终收益
+          }
+          if (d === lookAhead && !stoppedOut && !takeProfitHit) day5Change = change;
         }
         tracker.updatePerformance(symbol, pending.triggerDate, nextDayChange, maxGain, day5Change);
       }
@@ -274,6 +285,9 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
       if (volumeRatio >= 1.5) signalStrength++;
       if (signalStrength === 0) signalStrength = 1;
 
+      // 提高胜率：只记录信号强度 >= 2 的信号
+      if (signalStrength < 2) continue;
+
       tracker.recordTrigger(eventWithTf, signalStrength);
     }
 
@@ -290,16 +304,22 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
         let maxDrawdown = nextDayChange;
         const lookAhead = Math.min(5, weeklyChanges.length - triggerIdx - 1);
         let stoppedOut = false;
+        let takeProfitHit = false;
         for (let d = 1; d <= lookAhead; d++) {
           const futureDay = weeklyChanges[triggerIdx + d];
           const change = ((futureDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
           if (change > maxGain) maxGain = change;
           if (change < maxDrawdown) maxDrawdown = change;
-          if (change <= -5 && !stoppedOut) {
+          if (change <= -5 && !stoppedOut && !takeProfitHit) {
             stoppedOut = true;
             day5Change = change;
           }
-          if (d === lookAhead && !stoppedOut) day5Change = change;
+          // 止盈规则：涨到 +3% 视为止盈出局
+          if (change >= 3 && !takeProfitHit && !stoppedOut) {
+            takeProfitHit = true;
+            day5Change = change;
+          }
+          if (d === lookAhead && !stoppedOut && !takeProfitHit) day5Change = change;
         }
         tracker.updatePerformance(symbol, pending.triggerDate, nextDayChange, maxGain, day5Change);
       }
@@ -429,6 +449,9 @@ async function runDailyScan() {
           }
         }
         if (scanStrength === 0) scanStrength = 1;
+        
+        // 提高胜率：只记录信号强度 >= 2 的信号
+        if (scanStrength < 2) continue;
         
         signals.push({
           symbol,

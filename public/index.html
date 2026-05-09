@@ -54,7 +54,7 @@
   <div class="tab-bar" id="tab-bar"></div>
   <div id="warnings"></div>
   <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:0.75rem;color:var(--muted);line-height:1.6">
-    📋 <strong style="color:var(--accent)">过滤铁律</strong>：① 只做龙头（标普500/纳指100成分股）② 顺大盘（SPY>200日均线）③ 量能确认（成交量≥1.2x均量）④ IBS<0.5（收盘在区间下半部）⑤ 止损-5% ⑥ 止盈+10%
+    📋 <strong style="color:var(--accent)">过滤铁律</strong>：① 只做龙头（标普500/纳指100成分股）② 顺大盘（SPY>200日均线）③ 量能确认（成交量≥1.2x均量）④ IBS<0.5（收盘在区间下半部）⑤ 止损-5% ⑥ 止盈+3%
   </div>
   <div class="guide-panel">
     <div class="guide-toggle" onclick="this.parentElement.classList.toggle('open')">📖 操作策略指南（点击展开）</div>
@@ -107,7 +107,7 @@
       </div>
       <div class="guide-section">
         <div class="guide-title">📅 每日操作流程</div>
-        <div>① 美股收盘后看网页 → ② 筛选「信号强度=强」→ ③ 只看高胜率股票 → ④ 次日开盘买入，设-5%止损 → ⑤ 持有3-5天 → ⑥ +8%以上止盈</div>
+        <div>① 美股收盘后看网页 → ② 筛选「信号强度=强」→ ③ 只看高胜率股票 → ④ 次日开盘买入，设-5%止损 +3%止盈 → ⑤ 持有最多5天</div>
       </div>
       <div class="guide-section">
         <div class="guide-title">📖 指标说明手册</div>
@@ -115,10 +115,10 @@
           <strong>触发日涨跌：</strong>策略触发当天的股价涨跌幅<br>
           <strong>次日涨跌：</strong>触发后第一个交易日的涨跌幅（用于评估次日胜率）<br>
           <strong>5日最大：</strong>触发后5个交易日内出现的最大收益（用于评估持有期最佳收益）<br>
-          <strong>第5日：</strong>触发后第5个交易日的涨跌幅（含-5%止损截断）<br>
+          <strong>第5日：</strong>触发后第5个交易日的涨跌幅（含-5%止损截断、+3%止盈截断）<br>
           <strong>信号强度：</strong>1-3分。+1=SPY牛市，+1=IBS<0.3（强超卖），+1=放量≥1.5x。3分=强信号<br>
           <strong>周期：</strong>日线(1d)=每日K线数据，周线(1wk)=每周K线数据<br>
-          <strong>结果：</strong>✅止盈=5日最大≥10%，❌止损=第5日≤-5%，📊已结算=正常结束
+          <strong>结果：</strong>✅止盈=5日最大≥3%，❌止损=第5日≤-5%，📊已结算=正常结束
         </div>
       </div>
     </div>

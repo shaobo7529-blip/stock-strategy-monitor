@@ -14,7 +14,10 @@ echo "[$DATE] Starting daily monitor..."
 
 cd $PROJECT_DIR
 
-# 调用 API 触发刷新
-curl -s "http://localhost:3000/api/monitor?refresh=1" > /dev/null
+# 调用 API 触发刷新，并等待返回结果
+RESPONSE=$(curl -s "http://localhost:3000/api/monitor?refresh=1")
 
-echo "[$DATE] Daily monitor completed."
+# 检查返回的记录数
+RECORD_COUNT=$(echo "$RESPONSE" | grep -o '"records":\[.*\]' | grep -o '"symbol"' | wc -l)
+
+echo "[$DATE] Daily monitor completed. Records: $RECORD_COUNT"
