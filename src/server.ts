@@ -227,10 +227,25 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
             stoppedOut = true;
             day5Change = change; // 止损价作为最终收益
           }
-          // 止盈规则：涨到 +3% 视为止盈出局
+          // 止盈规则1：涨到 +3% 视为止盈出局
           if (change >= 3 && !takeProfitHit && !stoppedOut) {
             takeProfitHit = true;
             day5Change = change; // 止盈价作为最终收益
+          }
+          // 止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
+          // 计算当日5日均线（用过去5天收盘价）
+          const priceIdx = stockResult.value.findIndex(p => p.date === futureDay.date);
+          if (!takeProfitHit && !stoppedOut && priceIdx >= 5) {
+            let ma5Sum = 0;
+            for (let ma = priceIdx - 5; ma < priceIdx; ma++) {
+              ma5Sum += stockResult.value[ma].close;
+            }
+            const ma5 = ma5Sum / 5;
+            // 如果收盘价高于5日均线，提前止盈
+            if (stockResult.value[priceIdx].close > ma5) {
+              takeProfitHit = true;
+              day5Change = change;
+            }
           }
           if (d === lookAhead && !stoppedOut && !takeProfitHit) day5Change = change;
         }
@@ -330,10 +345,24 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
             stoppedOut = true;
             day5Change = change;
           }
-          // 止盈规则：涨到 +3% 视为止盈出局
+          // 止盈规则1：涨到 +3% 视为止盈出局
           if (change >= 3 && !takeProfitHit && !stoppedOut) {
             takeProfitHit = true;
             day5Change = change;
+          }
+          // 止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
+          const priceIdx = weeklyResult.value.findIndex(p => p.date === futureDay.date);
+          if (!takeProfitHit && !stoppedOut && priceIdx >= 5) {
+            let ma5Sum = 0;
+            for (let ma = priceIdx - 5; ma < priceIdx; ma++) {
+              ma5Sum += weeklyResult.value[ma].close;
+            }
+            const ma5 = ma5Sum / 5;
+            // 如果收盘价高于5日均线，提前止盈
+            if (weeklyResult.value[priceIdx].close > ma5) {
+              takeProfitHit = true;
+              day5Change = change;
+            }
           }
           if (d === lookAhead && !stoppedOut && !takeProfitHit) day5Change = change;
         }

@@ -153,13 +153,13 @@ async function runMonitor(configPath, triggersPath) {
             // 强度 2 = 牛市 + 强超卖 或 牛市 + 强放量 或 强超卖 + 强放量
             if (signalStrength < 2)
                 continue;
-            // 提高胜率：只记录触发日跌幅在 3-5% 的信号
-            // 根据5年数据验证，跌幅3-5%的胜率最高（62.2%）
+            // 提高胜率：只记录触发日跌幅在 1-3% 的信号
+            // 根据5年数据验证，跌幅1-3%的胜率稳定（59.7%），2026年表现最佳（58.6%）
             // ma-pullback 和 vix-spike 不受此过滤（策略特性不同）
             if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
                 const drop = event.triggerDayChange;
-                if (drop >= -3 || drop < -5)
-                    continue; // 只保留跌幅在3-5%的信号
+                if (drop >= -1 || drop < -3)
+                    continue; // 只保留跌幅在1-3%的信号
             }
             tracker.recordTrigger(eventWithTf, signalStrength);
         }
@@ -188,10 +188,25 @@ async function runMonitor(configPath, triggersPath) {
                         stoppedOut = true;
                         day5Change = change; // 止损价作为最终收益
                     }
-                    // 止盈规则：涨到 +3% 视为止盈出局
+                    // 止盈规则1：涨到 +3% 视为止盈出局
                     if (change >= 3 && !takeProfitHit && !stoppedOut) {
                         takeProfitHit = true;
                         day5Change = change; // 止盈价作为最终收益
+                    }
+                    // 止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
+                    // 计算当日5日均线（用过去5天收盘价）
+                    const priceIdx = stockResult.value.findIndex(p => p.date === futureDay.date);
+                    if (!takeProfitHit && !stoppedOut && priceIdx >= 5) {
+                        let ma5Sum = 0;
+                        for (let ma = priceIdx - 5; ma < priceIdx; ma++) {
+                            ma5Sum += stockResult.value[ma].close;
+                        }
+                        const ma5 = ma5Sum / 5;
+                        // 如果收盘价高于5日均线，提前止盈
+                        if (stockResult.value[priceIdx].close > ma5) {
+                            takeProfitHit = true;
+                            day5Change = change;
+                        }
                     }
                     if (d === lookAhead && !stoppedOut && !takeProfitHit)
                         day5Change = change;
@@ -258,13 +273,13 @@ async function runMonitor(configPath, triggersPath) {
             // 提高胜率：只记录信号强度 >= 2 的信号
             if (signalStrength < 2)
                 continue;
-            // 提高胜率：只记录触发日跌幅在 3-5% 的信号
-            // 根据5年数据验证，跌幅3-5%的胜率最高（62.2%）
+            // 提高胜率：只记录触发日跌幅在 1-3% 的信号
+            // 根据5年数据验证，跌幅1-3%的胜率稳定（59.7%），2026年表现最佳（58.6%）
             // ma-pullback 和 vix-spike 不受此过滤（策略特性不同）
             if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
                 const drop = event.triggerDayChange;
-                if (drop >= -3 || drop < -5)
-                    continue; // 只保留跌幅在3-5%的信号
+                if (drop >= -1 || drop < -3)
+                    continue; // 只保留跌幅在1-3%的信号
             }
             tracker.recordTrigger(eventWithTf, signalStrength);
         }
@@ -292,10 +307,24 @@ async function runMonitor(configPath, triggersPath) {
                         stoppedOut = true;
                         day5Change = change;
                     }
-                    // 止盈规则：涨到 +3% 视为止盈出局
+                    // 止盈规则1：涨到 +3% 视为止盈出局
                     if (change >= 3 && !takeProfitHit && !stoppedOut) {
                         takeProfitHit = true;
                         day5Change = change;
+                    }
+                    // 止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
+                    const priceIdx = weeklyResult.value.findIndex(p => p.date === futureDay.date);
+                    if (!takeProfitHit && !stoppedOut && priceIdx >= 5) {
+                        let ma5Sum = 0;
+                        for (let ma = priceIdx - 5; ma < priceIdx; ma++) {
+                            ma5Sum += weeklyResult.value[ma].close;
+                        }
+                        const ma5 = ma5Sum / 5;
+                        // 如果收盘价高于5日均线，提前止盈
+                        if (weeklyResult.value[priceIdx].close > ma5) {
+                            takeProfitHit = true;
+                            day5Change = change;
+                        }
                     }
                     if (d === lookAhead && !stoppedOut && !takeProfitHit)
                         day5Change = change;
@@ -425,10 +454,10 @@ async function runDailyScan() {
                 // 提高胜率：只记录信号强度 >= 2 的信号
                 if (scanStrength < 2)
                     continue;
-                // 提高胜率：只记录触发日跌幅在 3-5% 的信号（5年数据验证：62.2%胜率）
+                // 提高胜率：只记录触发日跌幅在 1-3% 的信号（5年数据验证：62.2%胜率）
                 if (event.strategyType !== 'ma-pullback' && event.strategyType !== 'vix-spike' && event.strategyType !== 'hammer-reversal') {
                     const drop = event.triggerDayChange;
-                    if (drop >= -3 || drop < -5)
+                    if (drop >= -1 || drop < -3)
                         continue;
                 }
                 signals.push({
