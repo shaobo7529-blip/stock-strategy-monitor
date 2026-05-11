@@ -354,6 +354,180 @@ export class HammerReversalStrategy implements Strategy {
 }
 
 /**
+ * 金叉突破策略 (Golden Cross)
+ * 
+ * 触发条件：
+ * 1. MA10 上穿 MA20（短期均线上穿长期均线，买入信号）
+ * 2. 当前价格在 MA50 之上（确认中期趋势向上）
+ * 3. 成交量 > 5日均量（放量确认）
+ * 
+ * 这是经典的趋势跟踪策略，适合捕捉中期上涨趋势
+ */
+export class GoldenCrossStrategy implements Strategy {
+  readonly name = 'golden-cross';
+
+  evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean {
+    if (!priceHistory || priceHistory.length < 51) return false;
+
+    const today = priceHistory[priceHistory.length - 1];
+    const yesterday = priceHistory[priceHistory.length - 2];
+
+    // 计算 MA10, MA20, MA50
+    const ma10Today = this.calcMA(priceHistory, 10);
+    const ma20Today = this.calcMA(priceHistory, 20);
+    const ma50 = this.calcMA(priceHistory, 50);
+    
+    if (!ma10Today || !ma20Today || !ma50) return false;
+
+    // 计算昨天的 MA10 和 MA20
+    const pricesYesterday = priceHistory.slice(0, -1);
+    const ma10Yesterday = this.calcMA(pricesYesterday, 10);
+    const ma20Yesterday = this.calcMA(pricesYesterday, 20);
+    
+    if (!ma10Yesterday || !ma20Yesterday) return false;
+
+    // 1. MA10 上穿 MA20（金叉）
+    // 昨天 MA10 <= MA20，今天 MA10 > MA20
+    if (ma10Yesterday <= ma20Yesterday) return false;
+    if (ma10Today <= ma20Today) return false;
+    // 确保是今天刚发生金叉
+    if (ma10Yesterday > ma20Yesterday) return false;
+
+    // 2. 价格在 MA50 之上（中期趋势向上）
+    if (today.close <= ma50) return false;
+
+    // 3. 成交量确认：成交量 > 5日均量 * threshold（默认1.2倍）
+    const avgVol5 = this.calcAvgVolume(priceHistory, 5);
+    if (!avgVol5 || today.volume < avgVol5 * threshold) return false;
+
+    return true;
+  }
+
+  private calcMA(prices: DailyPrice[], period: number): number | null {
+    if (prices.length < period) return null;
+    const slice = prices.slice(-period);
+    return slice.reduce((sum, p) => sum + p.close, 0) / period;
+  }
+
+  private calcAvgVolume(prices: DailyPrice[], period: number): number | null {
+    if (prices.length < period + 1) return null;
+    const slice = prices.slice(-(period + 1), -1);
+    return slice.reduce((sum, p) => sum + p.volume, 0) / period;
+  }
+}
+
+/**
+ * 唐奇安通道突破策略 (Donchian Channel Breakout)
+ * 
+ * 经典的海龟交易策略：
+ * 触发条件：
+ * 1. 价格突破 threshold 日高点（默认20日）
+ * 2. 成交量 > 5日均量（放量确认突破有效）
+ * 
+ * 适合捕捉趋势行情
+ */
+export class DonchianBreakoutStrategy implements Strategy {
+  readonly name = 'donchian-breakout';
+
+  evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean {
+    if (!priceHistory || priceHistory.length < threshold + 1) return false;
+
+    const today = priceHistory[priceHistory.length - 1];
+    
+    // 获取过去 threshold 天的最高价（不含今天）
+    const lookback = priceHistory.slice(-(threshold + 1), -1);
+    const highestHigh = Math.max(...lookback.map(p => p.high));
+
+    // 1. 今天收盘价突破 threshold 日高点
+    if (today.close <= highestHigh) return false;
+
+    // 2. 成交量确认：成交量 > 5日均量 * 1.3（放量突破）
+    const avgVol5 = this.calcAvgVolume(priceHistory, 5);
+    if (!avgVol5 || today.volume < avgVol5 * 1.3) return false;
+
+    // 3. 避免 already 高位突破（防止假突破）：当前价格不应超过 threshold 日高点太多
+    const breakoutPercent = ((today.close - highestHigh) / highestHigh) * 100;
+    if (breakoutPercent > 5) return false; // 突破幅度不超过5%
+
+    return true;
+  }
+
+  private calcAvgVolume(prices: DailyPrice[], period: number): number | null {
+    if (prices.length < period + 1) return null;
+    const slice = prices.slice(-(period + 1), -1);
+    return slice.reduce((sum, p) => sum + p.volume, 0) / period;
+  }
+}
+
+/**
+ * 双均线多头策略 (Dual MA Trend)
+ * 
+ * 触发条件：
+ * 1. MA5 > MA10 > MA20（均线多头排列）
+ * 2. MA5、MA10、MA20 均向上（近3日均线递增）
+ * 3. 收盘价在 MA5 之上
+ * 4. 当日涨幅 > 0（阳线）
+ * 
+ * 适合趋势确认后的加仓或新开仓
+ */
+export class DualMATrendStrategy implements Strategy {
+  readonly name = 'dual-ma-trend';
+
+  evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean {
+    if (!priceHistory || priceHistory.length < 25) return false;
+
+    const today = priceHistory[priceHistory.length - 1];
+
+    // 计算 MA5, MA10, MA20
+    const ma5 = this.calcMA(priceHistory, 5);
+    const ma10 = this.calcMA(priceHistory, 10);
+    const ma20 = this.calcMA(priceHistory, 20);
+    
+    if (!ma5 || !ma10 || !ma20) return false;
+
+    // 1. MA5 > MA10 > MA20（多头排列）
+    if (ma5 <= ma10 || ma10 <= ma20) return false;
+
+    // 2. 均线向上（近3日递增）
+    if (!this.isMATrendingUp(priceHistory, 5, 3)) return false;
+    if (!this.isMATrendingUp(priceHistory, 10, 3)) return false;
+
+    // 3. 收盘价在 MA5 之上
+    if (today.close <= ma5) return false;
+
+    // 4. 当日涨幅 > 0
+    if (!context || context.length < 1) return false;
+    const todayChange = context[context.length - 1];
+    if (todayChange.changePercent <= 0) return false;
+
+    // 5. 涨幅不超过 threshold%（默认5%，避免追高）
+    if (todayChange.changePercent > threshold) return false;
+
+    return true;
+  }
+
+  private calcMA(prices: DailyPrice[], period: number): number | null {
+    if (prices.length < period) return null;
+    const slice = prices.slice(-period);
+    return slice.reduce((sum, p) => sum + p.close, 0) / period;
+  }
+
+  private isMATrendingUp(prices: DailyPrice[], maPeriod: number, checkDays: number): boolean {
+    if (prices.length < maPeriod + checkDays) return false;
+    const maValues: number[] = [];
+    for (let i = 0; i < checkDays; i++) {
+      const endIdx = prices.length - i;
+      const slice = prices.slice(endIdx - maPeriod, endIdx);
+      maValues.unshift(slice.reduce((s, p) => s + p.close, 0) / maPeriod);
+    }
+    for (let i = 1; i < maValues.length; i++) {
+      if (maValues[i] <= maValues[i - 1]) return false;
+    }
+    return true;
+  }
+}
+
+/**
  * 策略引擎 — 注册策略并对日变动数据执行评估，收集触发事件
  */
 export class StrategyEngine {

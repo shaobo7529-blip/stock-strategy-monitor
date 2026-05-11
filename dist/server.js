@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import * as url from 'node:url';
 import { parse } from './ConfigParser.js';
 import { fetchStockHistory, fetchIndexHistory, validateSymbol, calculateDailyChanges, } from './DataFetcher.js';
-import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, ExtremePanicStrategy, HammerReversalStrategy, } from './StrategyEngine.js';
+import { StrategyEngine, SingleDayDropStrategy, UnderperformBenchmarkStrategy, RSI2OversoldStrategy, ConsecutiveDownDaysStrategy, MAPullbackStrategy, CumulativeRSI2Strategy, VIXSpikeStrategy, ExtremePanicStrategy, HammerReversalStrategy, GoldenCrossStrategy, DonchianBreakoutStrategy, DualMATrendStrategy, } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { LARGE_CAP_SYMBOLS } from './largecap.js';
 import { generateCSV, calculateStats } from './ReportGenerator.js';
@@ -80,6 +80,9 @@ async function runMonitor(configPath, triggersPath) {
     engine.registerStrategy(new VIXSpikeStrategy());
     engine.registerStrategy(new ExtremePanicStrategy());
     engine.registerStrategy(new HammerReversalStrategy());
+    engine.registerStrategy(new GoldenCrossStrategy());
+    engine.registerStrategy(new DonchianBreakoutStrategy());
+    engine.registerStrategy(new DualMATrendStrategy());
     // 不加载旧记录，每次全量重新计算避免重复
     const tracker = new TriggerTracker();
     for (const symbol of validSymbols) {

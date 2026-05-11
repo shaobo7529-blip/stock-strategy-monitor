@@ -1,0 +1,5 @@
+美股策略监控 Web 服务已启动: http://localhost:3000
+配置文件: config.json
+按 Ctrl+C 停止
+后台刷新数据...
+刷新失败: 没有有效的股票代码

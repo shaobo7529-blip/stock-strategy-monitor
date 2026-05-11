@@ -116,6 +116,54 @@ export declare class HammerReversalStrategy implements Strategy {
     evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean;
 }
 /**
+ * 金叉突破策略 (Golden Cross)
+ *
+ * 触发条件：
+ * 1. MA10 上穿 MA20（短期均线上穿长期均线，买入信号）
+ * 2. 当前价格在 MA50 之上（确认中期趋势向上）
+ * 3. 成交量 > 5日均量（放量确认）
+ *
+ * 这是经典的趋势跟踪策略，适合捕捉中期上涨趋势
+ */
+export declare class GoldenCrossStrategy implements Strategy {
+    readonly name = "golden-cross";
+    evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean;
+    private calcMA;
+    private calcAvgVolume;
+}
+/**
+ * 唐奇安通道突破策略 (Donchian Channel Breakout)
+ *
+ * 经典的海龟交易策略：
+ * 触发条件：
+ * 1. 价格突破 threshold 日高点（默认20日）
+ * 2. 成交量 > 5日均量（放量确认突破有效）
+ *
+ * 适合捕捉趋势行情
+ */
+export declare class DonchianBreakoutStrategy implements Strategy {
+    readonly name = "donchian-breakout";
+    evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean;
+    private calcAvgVolume;
+}
+/**
+ * 双均线多头策略 (Dual MA Trend)
+ *
+ * 触发条件：
+ * 1. MA5 > MA10 > MA20（均线多头排列）
+ * 2. MA5、MA10、MA20 均向上（近3日均线递增）
+ * 3. 收盘价在 MA5 之上
+ * 4. 当日涨幅 > 0（阳线）
+ *
+ * 适合趋势确认后的加仓或新开仓
+ */
+export declare class DualMATrendStrategy implements Strategy {
+    readonly name = "dual-ma-trend";
+    evaluate(_stock: DailyChange, _benchmark: DailyChange | null, threshold: number, context?: DailyChange[], priceHistory?: DailyPrice[]): boolean;
+    private calcMA;
+    private isMATrendingUp;
+}
+/**
  * 策略引擎 — 注册策略并对日变动数据执行评估，收集触发事件
  */
 export declare class StrategyEngine {

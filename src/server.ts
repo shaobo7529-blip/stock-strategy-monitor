@@ -26,6 +26,9 @@ import {
   VIXSpikeStrategy,
   ExtremePanicStrategy,
   HammerReversalStrategy,
+  GoldenCrossStrategy,
+  DonchianBreakoutStrategy,
+  DualMATrendStrategy,
 } from './StrategyEngine.js';
 import { TriggerTracker } from './TriggerTracker.js';
 import { LARGE_CAP_SYMBOLS } from './largecap.js';
@@ -118,6 +121,9 @@ async function runMonitor(configPath: string, triggersPath: string): Promise<{
   engine.registerStrategy(new VIXSpikeStrategy());
   engine.registerStrategy(new ExtremePanicStrategy());
   engine.registerStrategy(new HammerReversalStrategy());
+  engine.registerStrategy(new GoldenCrossStrategy());
+  engine.registerStrategy(new DonchianBreakoutStrategy());
+  engine.registerStrategy(new DualMATrendStrategy());
 
   // 不加载旧记录，每次全量重新计算避免重复
   const tracker = new TriggerTracker();
