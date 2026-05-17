@@ -989,6 +989,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: 获取市场环境判断
+  if (pathname === '/api/market-regime') {
+    try {
+      const regimeFile = path.resolve('market-regime.json');
+      if (fs.existsSync(regimeFile)) {
+        const regimeData = JSON.parse(fs.readFileSync(regimeFile, 'utf-8'));
+        sendJSON(res, 200, regimeData);
+      } else {
+        // 返回默认值
+        sendJSON(res, 200, {
+          lastUpdate: new Date().toISOString().split('T')[0],
+          regime: 'unknown',
+          regimeName: '未知',
+          advice: '请运行 market-regime.mjs 更新市场环境数据'
+        });
+      }
+    } catch (err: any) {
+      sendJSON(res, 500, { error: err.message });
+    }
+    return;
+  }
+
   // 404
   sendJSON(res, 404, { error: 'Not found' });
 });

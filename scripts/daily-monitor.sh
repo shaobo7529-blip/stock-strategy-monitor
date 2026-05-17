@@ -14,6 +14,11 @@ echo "[$DATE] Starting daily monitor..."
 
 cd $PROJECT_DIR
 
+# 更新市场环境数据（牛市/熊市/震荡市判断）
+echo "[$DATE] Updating market regime..."
+node market-regime.mjs >> $LOG_DIR/market-regime.log 2>&1
+echo "[$DATE] Market regime updated."
+
 # 调用 API 触发刷新，并等待返回结果
 RESPONSE=$(curl -s "http://localhost:3000/api/monitor?refresh=1")
 

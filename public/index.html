@@ -35,6 +35,19 @@
   .tab-item { padding: 10px 20px; cursor: pointer; font-size: 0.85rem; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
   .tab-item:hover { color: var(--text); }
   .tab-item.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  
+  /* Market Regime Card */
+  .market-regime-card { background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; margin: 16px 24px; }
+  .regime-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .regime-emoji { font-size: 1.5rem; }
+  .regime-title { font-size: 1.1rem; font-weight: 700; }
+  .regime-title span { color: var(--accent); }
+  .regime-details { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+  .regime-detail { display: flex; flex-direction: column; gap: 2px; }
+  .detail-label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .detail-value { font-size: 0.95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .regime-advice { background: rgba(59,130,246,0.1); border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; color: var(--text); margin-bottom: 8px; }
+  .regime-update { font-size: 0.7rem; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -42,6 +55,35 @@
   <h1>📊 <span>Optimized U.S. Stock Strategy</span> of Zaccheo</h1>
   <div class="subtitle">Real-time Monitoring · Multi-Strategy Backtesting · Data-Driven Decisions</div>
 </div>
+
+<!-- 市场环境卡片 -->
+<div id="market-regime-card" class="market-regime-card" style="display:none;">
+  <div class="regime-header">
+    <span class="regime-emoji" id="regime-emoji">🟡</span>
+    <span class="regime-title">市场环境：<span id="regime-name">加载中...</span></span>
+  </div>
+  <div class="regime-details">
+    <div class="regime-detail">
+      <span class="detail-label">SPY 价格</span>
+      <span class="detail-value" id="spy-price">--</span>
+    </div>
+    <div class="regime-detail">
+      <span class="detail-label">MA50</span>
+      <span class="detail-value" id="spy-ma50">--</span>
+    </div>
+    <div class="regime-detail">
+      <span class="detail-label">MA200</span>
+      <span class="detail-value" id="spy-ma200">--</span>
+    </div>
+    <div class="regime-detail">
+      <span class="detail-label">距 MA200</span>
+      <span class="detail-value" id="spy-dist">--</span>
+    </div>
+  </div>
+  <div class="regime-advice" id="regime-advice">--</div>
+  <div class="regime-update">更新时间：<span id="regime-date">--</span></div>
+</div>
+
 <div class="container">
   <div class="toolbar">
     <button class="btn btn-primary" id="btn-run" onclick="loadData(true)">🔄 运行监控</button>
@@ -818,6 +860,54 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-wrap')) hideSearch();
 });
 
+// --- 市场环境判断 ---
+async function loadMarketRegime() {
+  const card = document.getElementById('market-regime-card');
+  const emojiEl = document.getElementById('regime-emoji');
+  const nameEl = document.getElementById('regime-name');
+  const priceEl = document.getElementById('spy-price');
+  const ma50El = document.getElementById('spy-ma50');
+  const ma200El = document.getElementById('spy-ma200');
+  const distEl = document.getElementById('spy-dist');
+  const adviceEl = document.getElementById('regime-advice');
+  const dateEl = document.getElementById('regime-date');
+  
+  try {
+    const res = await fetch('/api/market-regime');
+    const data = await res.json();
+    
+    if (data.error) {
+      console.error('Failed to load market regime:', data.error);
+      return;
+    }
+    
+    // 设置 emoji 和颜色
+    const regimeColors = {
+      bull: { emoji: '🟢', color: 'var(--green)' },
+      bear: { emoji: '🔴', color: 'var(--red)' },
+      sideways: { emoji: '🟡', color: 'var(--yellow)' }
+    };
+    const regimeInfo = regimeColors[data.regime] || { emoji: '⚪', color: 'var(--muted)' };
+    
+    emojiEl.textContent = regimeInfo.emoji;
+    nameEl.textContent = data.regimeName || '未知';
+    nameEl.style.color = regimeInfo.color;
+    
+    priceEl.textContent = '$' + data.spyPrice.toFixed(2);
+    ma50El.textContent = '$' + data.ma50.toFixed(2);
+    ma200El.textContent = '$' + data.ma200.toFixed(2);
+    distEl.textContent = (data.distanceFromMA200 >= 0 ? '+' : '') + data.distanceFromMA200.toFixed(2) + '%';
+    distEl.className = 'detail-value ' + (data.distanceFromMA200 >= 0 ? 'positive' : 'negative');
+    
+    adviceEl.textContent = '💡 ' + data.advice;
+    dateEl.textContent = data.date || '--';
+    
+    card.style.display = 'block';
+  } catch(e) {
+    console.error('Failed to load market regime:', e);
+  }
+}
+
 // --- 分组标签 ---
 let largeCapSymbols = []; // 权重股列表（从 largecap.ts 获取）
 
@@ -971,6 +1061,7 @@ async function startScanAndRefresh() {
 loadGroups();
 loadLargeCapSymbols();
 loadScan();
+loadMarketRegime();
 
 // 页面打开自动加载数据
 loadData(false);
