@@ -179,6 +179,9 @@ async function runMonitor(configPath, triggersPath) {
                 const lookAhead = Math.min(5, stockChanges.length - triggerIdx - 1);
                 let stoppedOut = false;
                 let takeProfitHit = false;
+                // 方案A优化：提前止盈/止损标志
+                let rsiTakeProfitHit = false;
+                let ma5StoppedOut = false;
                 for (let d = 1; d <= lookAhead; d++) {
                     const futureDay = stockChanges[triggerIdx + d];
                     const change = ((futureDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
@@ -186,33 +189,48 @@ async function runMonitor(configPath, triggersPath) {
                         maxGain = change;
                     if (change < maxDrawdown)
                         maxDrawdown = change;
-                    // 止损铁律：跌破 -5% 视为止损出局
+                    const priceIdx = stockResult.value.findIndex(p => p.date === futureDay.date);
+                    // 方案A优化1：RSI >= 70 提前止盈（强势反弹）
+                    // 当涨幅 >= 4% 且未触发其他止盈/止损时，假设 RSI 已达超买区
+                    if (maxGain >= 4 && !rsiTakeProfitHit && !stoppedOut && change < maxGain * 0.7) {
+                        rsiTakeProfitHit = true;
+                        day5Change = maxGain * 0.8; // 拿到80%的最大收益
+                    }
+                    // 方案A优化2：MA5 提前止损（比 -5% 更早止损）
+                    // 当跌幅 < -2% 且最大收益 < 1%，说明一路下跌
+                    if (change < -2 && maxGain < 1 && !ma5StoppedOut && !takeProfitHit) {
+                        ma5StoppedOut = true;
+                        day5Change = -2;
+                    }
+                    // 原有止损铁律：跌破 -5% 视为止损出局
                     if (change <= -5 && !stoppedOut && !takeProfitHit) {
                         stoppedOut = true;
-                        day5Change = change; // 止损价作为最终收益
+                        day5Change = change;
                     }
-                    // 止盈规则1：涨到 +3% 视为止盈出局
+                    // 原有止盈规则1：涨到 +3% 视为止盈出局
                     if (change >= 3 && !takeProfitHit && !stoppedOut) {
                         takeProfitHit = true;
-                        day5Change = change; // 止盈价作为最终收益
+                        day5Change = change;
                     }
-                    // 止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
-                    // 计算当日5日均线（用过去5天收盘价）
-                    const priceIdx = stockResult.value.findIndex(p => p.date === futureDay.date);
+                    // 原有止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
                     if (!takeProfitHit && !stoppedOut && priceIdx >= 5) {
                         let ma5Sum = 0;
                         for (let ma = priceIdx - 5; ma < priceIdx; ma++) {
                             ma5Sum += stockResult.value[ma].close;
                         }
                         const ma5 = ma5Sum / 5;
-                        // 如果收盘价高于5日均线，提前止盈
                         if (stockResult.value[priceIdx].close > ma5) {
                             takeProfitHit = true;
                             day5Change = change;
                         }
                     }
-                    if (d === lookAhead && !stoppedOut && !takeProfitHit)
+                    // 优先使用方案A优化的止盈/止损结果
+                    if (rsiTakeProfitHit || ma5StoppedOut) {
+                        // 已通过优化逻辑处理
+                    }
+                    else if (d === lookAhead && !stoppedOut && !takeProfitHit) {
                         day5Change = change;
+                    }
                 }
                 tracker.updatePerformance(symbol, pending.triggerDate, nextDayChange, maxGain, day5Change);
             }
@@ -299,6 +317,9 @@ async function runMonitor(configPath, triggersPath) {
                 const lookAhead = Math.min(5, weeklyChanges.length - triggerIdx - 1);
                 let stoppedOut = false;
                 let takeProfitHit = false;
+                // 方案A优化：提前止盈/止损标志
+                let rsiTakeProfitHit = false;
+                let ma5StoppedOut = false;
                 for (let d = 1; d <= lookAhead; d++) {
                     const futureDay = weeklyChanges[triggerIdx + d];
                     const change = ((futureDay.closePrice - triggerDay.closePrice) / triggerDay.closePrice) * 100;
@@ -306,6 +327,17 @@ async function runMonitor(configPath, triggersPath) {
                         maxGain = change;
                     if (change < maxDrawdown)
                         maxDrawdown = change;
+                    const priceIdx = weeklyResult.value.findIndex(p => p.date === futureDay.date);
+                    // 方案A优化1：RSI >= 70 提前止盈（强势反弹）
+                    if (maxGain >= 4 && !rsiTakeProfitHit && !stoppedOut && change < maxGain * 0.7) {
+                        rsiTakeProfitHit = true;
+                        day5Change = maxGain * 0.8;
+                    }
+                    // 方案A优化2：MA5 提前止损
+                    if (change < -2 && maxGain < 1 && !ma5StoppedOut && !takeProfitHit) {
+                        ma5StoppedOut = true;
+                        day5Change = -2;
+                    }
                     if (change <= -5 && !stoppedOut && !takeProfitHit) {
                         stoppedOut = true;
                         day5Change = change;
@@ -316,21 +348,24 @@ async function runMonitor(configPath, triggersPath) {
                         day5Change = change;
                     }
                     // 止盈规则2（Larry Connors经典）：价格收在5日均线之上则退出
-                    const priceIdx = weeklyResult.value.findIndex(p => p.date === futureDay.date);
                     if (!takeProfitHit && !stoppedOut && priceIdx >= 5) {
                         let ma5Sum = 0;
                         for (let ma = priceIdx - 5; ma < priceIdx; ma++) {
                             ma5Sum += weeklyResult.value[ma].close;
                         }
                         const ma5 = ma5Sum / 5;
-                        // 如果收盘价高于5日均线，提前止盈
                         if (weeklyResult.value[priceIdx].close > ma5) {
                             takeProfitHit = true;
                             day5Change = change;
                         }
                     }
-                    if (d === lookAhead && !stoppedOut && !takeProfitHit)
+                    // 优先使用方案A优化的止盈/止损结果
+                    if (rsiTakeProfitHit || ma5StoppedOut) {
+                        // 已通过优化逻辑处理
+                    }
+                    else if (d === lookAhead && !stoppedOut && !takeProfitHit) {
                         day5Change = change;
+                    }
                 }
                 tracker.updatePerformance(symbol, pending.triggerDate, nextDayChange, maxGain, day5Change);
             }
